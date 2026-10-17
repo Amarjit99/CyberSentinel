@@ -1,0 +1,50 @@
+{
+  "scenario_id": "SCN-03-UNUSUAL-ADMIN",
+  "version": "1.0.0",
+  "name": "Unusual Administrative Reconnaissance",
+  "description": "Simulates execution of whoami.exe for system discovery on a lab workstation.",
+  "objective": "Verify that proc_cmd_whoami fires with low severity discovery event and maps to T1033.",
+  "category": "discovery",
+  "is_negative_case": false,
+  "required_telemetry_sources": [
+    "windows"
+  ],
+  "required_canonical_fields": [
+    "process_name"
+  ],
+  "attack_technique_ids": [
+    "T1033"
+  ],
+  "synthetic_events": [
+    {
+      "event_id": "756a8426-379c-473f-9739-bfcf0b9a871f",
+      "timestamp": "2026-10-17T08:10:00Z",
+      "ingest_timestamp": "2026-10-17T08:10:01Z",
+      "source_type": "windows",
+      "source_name": "sysmon",
+      "event_type": "process_creation",
+      "hostname": "workstation-02-lab.lab.local",
+      "username": "bob_operator",
+      "process_name": "whoami.exe",
+      "process_id": 5510,
+      "parent_process": "cmd.exe",
+      "command_line": "whoami.exe /all",
+      "severity": "low"
+    }
+  ],
+  "expected_detection_rules": [
+    "proc_cmd_whoami"
+  ],
+  "unexpected_detection_rules": [],
+  "expected_correlation_rules": [],
+  "expected_incident_severity": "low",
+  "expected_risk_band": "Low",
+  "expected_triage_severity": "low",
+  "expected_investigation_hypotheses": [
+    "User enumeration command executed on workstation"
+  ],
+  "expected_uncertainty_or_gaps": [
+    "Benign admin troubleshooting cannot be ruled out without operator interview"
+  ],
+  "cleanup_policy": "session_rollback"
+}

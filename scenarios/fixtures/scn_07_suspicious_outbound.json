@@ -1,0 +1,50 @@
+{
+  "scenario_id": "SCN-07-SUSPICIOUS-OUTBOUND",
+  "version": "1.0.0",
+  "name": "Suspicious Outbound C2 Connection",
+  "description": "Simulates outbound network connection to port 4444 on a test external IP.",
+  "objective": "Verify net_suspicious_outbound detection and mapping to T1071.",
+  "category": "command_and_control",
+  "is_negative_case": false,
+  "required_telemetry_sources": [
+    "network"
+  ],
+  "required_canonical_fields": [
+    "dst_port",
+    "dst_ip"
+  ],
+  "attack_technique_ids": [
+    "T1071"
+  ],
+  "synthetic_events": [
+    {
+      "event_id": "c6e66649-3c8b-409e-a8ca-ebdbe2b9e645",
+      "timestamp": "2026-10-17T08:30:00Z",
+      "ingest_timestamp": "2026-10-17T08:30:01Z",
+      "source_type": "network",
+      "source_name": "suricata",
+      "event_type": "network_connection",
+      "hostname": "workstation-c2-lab.lab.local",
+      "src_ip": "10.99.1.75",
+      "dst_ip": "198.51.100.99",
+      "src_port": 49201,
+      "dst_port": 4444,
+      "severity": "high"
+    }
+  ],
+  "expected_detection_rules": [
+    "net_suspicious_outbound"
+  ],
+  "unexpected_detection_rules": [],
+  "expected_correlation_rules": [],
+  "expected_incident_severity": "high",
+  "expected_risk_band": "High",
+  "expected_triage_severity": "high",
+  "expected_investigation_hypotheses": [
+    "High-risk outbound connection established to TCP 4444"
+  ],
+  "expected_uncertainty_or_gaps": [
+    "Encrypted egress payload content unknown"
+  ],
+  "cleanup_policy": "session_rollback"
+}

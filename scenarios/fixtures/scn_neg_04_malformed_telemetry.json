@@ -1,0 +1,41 @@
+{
+  "scenario_id": "SCN-NEG-04-MALFORMED-TELEMETRY",
+  "version": "1.0.0",
+  "name": "Malformed Telemetry Quarantine Test",
+  "description": "Simulates raw log entry missing mandatory fields or containing invalid port numbers to verify safe ingestion rejection.",
+  "objective": "Verify that normalization engine rejects malformed records without crashing pipeline.",
+  "category": "benign_baseline",
+  "is_negative_case": true,
+  "required_telemetry_sources": [
+    "network"
+  ],
+  "required_canonical_fields": [
+    "event_type"
+  ],
+  "attack_technique_ids": [],
+  "synthetic_events": [
+    {
+      "event_id": "aa869b96-06fa-4b2f-a071-5cb930229a31",
+      "timestamp": "2026-10-17T09:15:00Z",
+      "ingest_timestamp": "2026-10-17T09:15:01Z",
+      "source_type": "network",
+      "source_name": "zeek",
+      "event_type": "network_connection",
+      "dst_port": 999999,
+      "severity": "informational"
+    }
+  ],
+  "expected_detection_rules": [],
+  "unexpected_detection_rules": [
+    "net_suspicious_outbound"
+  ],
+  "expected_correlation_rules": [],
+  "expected_incident_severity": null,
+  "expected_risk_band": null,
+  "expected_triage_severity": null,
+  "expected_investigation_hypotheses": [],
+  "expected_uncertainty_or_gaps": [
+    "Telemetry rejected at ingestion schema boundary"
+  ],
+  "cleanup_policy": "session_rollback"
+}

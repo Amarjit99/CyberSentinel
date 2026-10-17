@@ -1,0 +1,34 @@
+[
+  {
+    "log_type": "conn",
+    "record": {
+      "ts": 1792152600.123456,
+      "uid": "CHhAvV3UgVPgwDso28",
+      "id.orig_h": "192.168.1.105",
+      "id.orig_p": 49152,
+      "id.resp_h": "198.51.100.12",
+      "id.resp_p": 443,
+      "proto": "tcp",
+      "service": "ssl",
+      "duration": 5.421,
+      "orig_bytes": 1240,
+      "resp_bytes": 8420,
+      "conn_state": "SF"
+    }
+  },
+  {
+    "log_type": "dns",
+    "record": {
+      "ts": 1792152615.654321,
+      "uid": "CDnsX89Jk2LmnOpQrs",
+      "id.orig_h": "192.168.1.105",
+      "id.orig_p": 53210,
+      "id.resp_h": "1.1.1.1",
+      "id.resp_p": 53,
+      "proto": "udp",
+      "query": "c2-beacon.attacker-domain.com",
+      "qtype_name": "A",
+      "answers": ["198.51.100.12"]
+    }
+  }
+]

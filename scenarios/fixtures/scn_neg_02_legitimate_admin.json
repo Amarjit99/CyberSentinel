@@ -1,0 +1,47 @@
+{
+  "scenario_id": "SCN-NEG-02-LEGITIMATE-ADMIN",
+  "version": "1.0.0",
+  "name": "Legitimate Admin Maintenance Script",
+  "description": "Simulates PowerShell execution with DownloadString by trusted_updater account, explicitly filtered out by rule.",
+  "objective": "Verify that proc_powershell_download rule ignores trusted_updater and generates zero detections.",
+  "category": "benign_baseline",
+  "is_negative_case": true,
+  "required_telemetry_sources": [
+    "windows"
+  ],
+  "required_canonical_fields": [
+    "process_name",
+    "username"
+  ],
+  "attack_technique_ids": [
+    "T1059.001"
+  ],
+  "synthetic_events": [
+    {
+      "event_id": "22acd579-c46f-49c7-9359-d6ca783c5d2e",
+      "timestamp": "2026-10-17T09:05:00Z",
+      "ingest_timestamp": "2026-10-17T09:05:01Z",
+      "source_type": "windows",
+      "source_name": "sysmon",
+      "event_type": "process_creation",
+      "hostname": "workstation-admin-lab.lab.local",
+      "username": "trusted_updater",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command (New-Object Net.WebClient).DownloadFile('http://updates.internal/patch.msi')",
+      "severity": "low"
+    }
+  ],
+  "expected_detection_rules": [],
+  "unexpected_detection_rules": [
+    "proc_powershell_download"
+  ],
+  "expected_correlation_rules": [],
+  "expected_incident_severity": null,
+  "expected_risk_band": null,
+  "expected_triage_severity": null,
+  "expected_investigation_hypotheses": [],
+  "expected_uncertainty_or_gaps": [
+    "Whitelisted administrative updater execution"
+  ],
+  "cleanup_policy": "session_rollback"
+}

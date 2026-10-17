@@ -1,0 +1,360 @@
+[
+  {
+    "id": "CONFL-001",
+    "severity": "P0",
+    "category": "Incident Lifecycle State Machine",
+    "title": "Incident Lifecycle States and State Machine Transitions Contradiction",
+    "conflicting_sources": [
+      {
+        "file": "docs/00-MASTER-REQUIREMENTS-SPECIFICATION.md",
+        "section": "Section 27 (Incident Lifecycle)",
+        "lines": "Lines 1296-1320",
+        "declared_states": [
+          "NEW",
+          "TRIAGED",
+          "INVESTIGATING",
+          "CONFIRMED / BENIGN",
+          "CONTAINMENT_PENDING",
+          "CONTAINED",
+          "ERADICATION",
+          "RECOVERY",
+          "CLOSED",
+          "LESSONS_LEARNED"
+        ]
+      },
+      {
+        "file": "docs/06-FUNCTIONAL-REQUIREMENTS.md",
+        "section": "Incident Management",
+        "lines": "Line 19",
+        "declared_states": [
+          "NEW",
+          "TRIAGE",
+          "INVESTIGATING",
+          "AWAITING_APPROVAL",
+          "CONTAINMENT",
+          "RECOVERY",
+          "CLOSED",
+          "REOPENED"
+        ]
+      },
+      {
+        "file": "docs/20-INCIDENT-LIFECYCLE.md",
+        "section": "Lifecycle State Machine",
+        "lines": "Line 19",
+        "declared_states": [
+          "NEW",
+          "TRIAGE",
+          "INVESTIGATING",
+          "AWAITING_APPROVAL",
+          "CONTAINMENT",
+          "RECOVERY",
+          "CLOSED",
+          "REOPENED"
+        ]
+      }
+    ],
+    "architectural_impact": "High blast radius. A fractured state machine breaks database check constraints, frontend state rendering, API transition validations, and automated playbook triggers. If the backend expects 'TRIAGED' but the frontend transitions to 'TRIAGE', or if approval gating relies on 'AWAITING_APPROVAL' while forensic workflows expect 'CONTAINMENT_PENDING', state corruption and deadlocks occur.",
+    "root_cause_analysis": "The master requirements specification modeled an extended NIST/ISO forensic incident lifecycle (including containment, eradication, and post-incident lessons learned), whereas companion documents 06 and 20 condensed the states for operational workflow ergonomics, introducing approval and reopening states without updating the master document.",
+    "recommended_resolution": "Ratify a unified, comprehensive 11-state incident lifecycle state machine via ADR-0001: NEW -> TRIAGE -> INVESTIGATING -> CONFIRMED (or BENIGN) -> AWAITING_APPROVAL -> CONTAINMENT -> ERADICATION -> RECOVERY -> CLOSED -> LESSONS_LEARNED (with bidirectional REOPENED transition from CLOSED).",
+    "governing_adr": "docs/decisions/ADR-0001-unified-incident-lifecycle.md",
+    "verification_strategy": "Automated state transition matrix test (TEST-FR-011) verifying all legal state transitions, illegal transition rejections, and state enum consistency across Pydantic schemas and PostgreSQL DDL.",
+    "status": "RESOLVED_BY_ADR"
+  },
+  {
+    "id": "CONFL-002",
+    "severity": "P1",
+    "category": "Multi-Agent Architecture & Taxonomy",
+    "title": "Agent Role Catalog and Delegation Taxonomy Discrepancy",
+    "conflicting_sources": [
+      {
+        "file": "docs/00-MASTER-REQUIREMENTS-SPECIFICATION.md",
+        "section": "Section 9 & Section 11",
+        "lines": "Lines 565-670, 699-713",
+        "declared_agents": [
+          "Triage Agent",
+          "Investigation Agent",
+          "Threat Intelligence Agent",
+          "Threat Hunting Agent",
+          "Evidence Agent",
+          "Risk Agent",
+          "Detection Engineering Agent",
+          "Response Agent"
+        ]
+      },
+      {
+        "file": "docs/10-AGENT-ARCHITECTURE.md",
+        "section": "Proposed specialized agents",
+        "lines": "Lines 6-15",
+        "declared_agents": [
+          "Triage agent",
+          "Evidence collector",
+          "Threat-intelligence analyst",
+          "ATT&CK mapper",
+          "Correlation assistant",
+          "Investigation planner",
+          "Response advisor",
+          "Report writer"
+        ]
+      }
+    ],
+    "architectural_impact": "Agent permission matrices, SPIFFE/SPIRE workload identities, and tool allowlists depend on canonical agent identifiers. Divergent agent naming prevents RBAC policy enforcement at the Policy Enforcement Point (PEP) and obscures audit log attribution.",
+    "root_cause_analysis": "Doc 10 decomposed investigation and reporting into micro-skills (planner, mapper, correlation assistant, report writer), while the master specification grouped them into 8 autonomous specialized service agents.",
+    "recommended_resolution": "Ratify an authoritative 8-agent core system in ADR-0002. Map Doc 10's functional specializations as modular sub-capabilities executed within the 8 core agent identities: Investigation Agent incorporates Investigation Planner, ATT&CK Mapper, and Correlation Assistant; Response Agent executes Response Advisor playbooks; Evidence Agent serves as Evidence Collector; and Triage Agent handles triage classification and draft reporting.",
+    "governing_adr": "docs/decisions/ADR-0002-standardized-agent-taxonomy.md",
+    "verification_strategy": "Agent registry schema validation (TEST-FR-014, TEST-FR-027) ensuring every agent run references a valid canonical AgentId with verified least-privilege tool allowlists.",
+    "status": "RESOLVED_BY_ADR"
+  },
+  {
+    "id": "CONFL-003",
+    "severity": "P1",
+    "category": "Database Architecture & Storage Tiering",
+    "title": "Database Relational Entity Model vs Monolithic Table List Divergence",
+    "conflicting_sources": [
+      {
+        "file": "docs/00-MASTER-REQUIREMENTS-SPECIFICATION.md",
+        "section": "Section 14 (Database Model)",
+        "lines": "Lines 787-861",
+        "declared_tables": "45+ tables listed monolithically including raw_events, normalized_events, detections, rules, attack mappings, etc."
+      },
+      {
+        "file": "docs/18-DATABASE-SCHEMA.md",
+        "section": "Core relational entities & Storage split",
+        "lines": "Lines 3-24",
+        "declared_tables": "17 authoritative relational entities in PostgreSQL (users, roles, user_roles, connectors, events, detections, detection_events, incidents, incident_detections, incident_entities, evidence, incident_notes, agent_runs, agent_findings, response_proposals, approvals, response_actions, audit_events)."
+      },
+      {
+        "file": "docs/09-DATA-ARCHITECTURE.md",
+        "section": "Storage placement",
+        "lines": "Lines 14-20",
+        "declared_tables": "Defines hybrid split: PostgreSQL for relational state, OpenSearch for high-volume telemetry, Redis for ephemeral caching."
+      }
+    ],
+    "architectural_impact": "Attempting to create all 45 tables in PostgreSQL for high-volume raw telemetry leads to severe I/O bottlenecks and bloat. Conversely, omitting detection and incident tables from migrations causes pipeline failures.",
+    "root_cause_analysis": "Master specification \u00a714 documented an abstract, conceptual entity-relationship catalog. Doc 18 designed the concrete, transaction-safe PostgreSQL relational schema, purposefully delegating event document storage to OpenSearch.",
+    "recommended_resolution": "Ratify the hybrid storage tiering architecture via ADR-0003: PostgreSQL manages the 17 authoritative transactional entities defined in Doc 18; OpenSearch manages normalized telemetry indices (canonical_events-*, raw_events-*); Redis provides short-lived lock and task coordination; and Object Storage archives raw payloads and evidence files.",
+    "governing_adr": "docs/decisions/ADR-0003-storage-tiering-and-database-entities.md",
+    "verification_strategy": "Database migration integration tests (TEST-FR-003, TEST-FR-026) running Alembic upgrade/downgrade scripts and verifying table constraints and foreign keys.",
+    "status": "RESOLVED_BY_ADR"
+  },
+  {
+    "id": "CONFL-004",
+    "severity": "P1",
+    "category": "Identity & Access Control (RBAC)",
+    "title": "Role-Based Access Control System Role Taxonomy Alignment",
+    "conflicting_sources": [
+      {
+        "file": "docs/00-MASTER-REQUIREMENTS-SPECIFICATION.md",
+        "section": "Section 24 (Authentication and Authorization)",
+        "lines": "Lines 1184-1195",
+        "declared_roles": [
+          "SOC_ANALYST",
+          "THREAT_HUNTER",
+          "DETECTION_ENGINEER",
+          "SOC_MANAGER",
+          "SECURITY_ENGINEER",
+          "ADMIN",
+          "RESEARCHER",
+          "VIEWER"
+        ]
+      },
+      {
+        "file": "docs/01-PROJECT-VISION.md",
+        "section": "Primary users",
+        "lines": "Lines 19-25",
+        "declared_roles": [
+          "SOC analyst",
+          "Detection engineer",
+          "SOC lead",
+          "Platform/security administrator",
+          "Researcher/evaluator"
+        ]
+      },
+      {
+        "file": "docs/11-SECURITY-ARCHITECTURE.md",
+        "section": "Identity and access",
+        "lines": "Lines 6-12",
+        "declared_roles": "Mentions analyst, detection engineer, approver, administrator, and response-executor."
+      }
+    ],
+    "architectural_impact": "Inconsistent role strings break JWT claim parsing, route-level authorization decorators in FastAPI, and database role assignment tables.",
+    "root_cause_analysis": "Vision documents used conversational job personas ('SOC lead', 'Platform administrator'), whereas technical architecture specified formal UPPERCASE machine-enforceable role enums.",
+    "recommended_resolution": "Standardize the 8 authoritative system role enum values in ADR-0004: SOC_ANALYST, THREAT_HUNTER, DETECTION_ENGINEER, SOC_MANAGER, SECURITY_ENGINEER, ADMIN, RESEARCHER, VIEWER. Map user personas directly to these canonical roles.",
+    "governing_adr": "docs/decisions/ADR-0004-rbac-roles-and-permissions.md",
+    "verification_strategy": "Automated RBAC authorization test suite (TEST-FR-026) verifying role-permission mappings and negative access control checks.",
+    "status": "RESOLVED_BY_ADR"
+  },
+  {
+    "id": "CONFL-005",
+    "severity": "P1",
+    "category": "Telemetry Pipeline & Event Schema",
+    "title": "Canonical Event Schema Field Definitions and Normalization Contracts",
+    "conflicting_sources": [
+      {
+        "file": "docs/00-MASTER-REQUIREMENTS-SPECIFICATION.md",
+        "section": "Section 13 (Canonical Event Schema)",
+        "lines": "Lines 751-785",
+        "declared_schema": "23 minimum fields in JSON format: event_id, timestamp, ingest_timestamp, source_type, source_name, event_type, host_id, hostname, user_id, username, src_ip, dst_ip, src_port, dst_port, process_name, process_id, parent_process, command_line, hash_sha256, domain, url, severity, raw_event."
+      },
+      {
+        "file": "docs/09-DATA-ARCHITECTURE.md",
+        "section": "Data domains",
+        "lines": "Lines 4-13",
+        "declared_schema": "High-level domain descriptions (normalized timestamp, event category/action/outcome, source product, host/user/process/network/cloud entities)."
+      },
+      {
+        "file": "docs/00-PHASE-WISE-IMPLEMENTATION-PLAN.md",
+        "section": "Phase 5",
+        "lines": "Lines 185-215",
+        "declared_schema": "Pydantic CanonicalEvent model with field validators."
+      }
+    ],
+    "architectural_impact": "Incompatible normalization pipelines create ingestion crashes, unparseable detection queries in Sigma, and broken timeline visualizations.",
+    "root_cause_analysis": "Different documents presented schema at different levels of abstraction (abstract domain vs concrete JSON vs Pydantic model).",
+    "recommended_resolution": "Codify the authoritative CanonicalEvent Pydantic v2 model via ADR-0005, enforcing strict UTC ISO-8601 timestamps, UUIDv4 event IDs, network IP validation, and an extensible dictionary structure for custom telemetry.",
+    "governing_adr": "docs/decisions/ADR-0005-canonical-event-schema-standards.md",
+    "verification_strategy": "Schema validation and normalization test suite (TEST-FR-003, TEST-FR-004) processing valid, missing-field, and malformed telemetry events.",
+    "status": "RESOLVED_BY_ADR"
+  },
+  {
+    "id": "CONFL-006",
+    "severity": "P1",
+    "category": "Response Orchestration & Governance",
+    "title": "Response Action Risk Tiering and Approval Classification Nomenclature",
+    "conflicting_sources": [
+      {
+        "file": "docs/00-MASTER-REQUIREMENTS-SPECIFICATION.md",
+        "section": "Section 12 (Human-in-the-Loop Policy)",
+        "lines": "Lines 715-749",
+        "declared_tiers": "3-tier classification: Low-risk (automated), Medium-risk (analyst approval), High-risk (explicit dual approval)."
+      },
+      {
+        "file": "docs/21-RESPONSE-PLAYBOOKS.md",
+        "section": "Action risk tiers",
+        "lines": "Lines 14-19",
+        "declared_tiers": "4-tier classification: Tier 0 (read-only/enrichment), Tier 1 (reversible/lab), Tier 2 (containment/identity - human approval), Tier 3 (destructive/broad - disabled)."
+      }
+    ],
+    "architectural_impact": "Mismatched risk tiers can lead to either accidental unapproved execution of disruptive actions (e.g. host isolation) or approval fatigue on harmless lookups.",
+    "root_cause_analysis": "The master spec used intuitive risk labels (Low/Medium/High), while the response playbook companion adopted a numerical zero-indexed tier system (Tier 0 to Tier 3) to explicitly distinguish read-only actions from reversible changes.",
+    "recommended_resolution": "Harmonize the taxonomy in ADR-0006 by establishing a 4-tier model with dual labels: Tier 0 (Autonomous / Low), Tier 1 (Lab-Safe / Low), Tier 2 (Disruptive Containment / Medium - Requires Single Analyst Approval), Tier 3 (High-Impact / Consequential - Requires Explicit Dual Authorization). Destructive actions remain permanently disabled in Phase 0-1.",
+    "governing_adr": "docs/decisions/ADR-0006-response-action-risk-tiering.md",
+    "verification_strategy": "Policy Enforcement Point test suite (TEST-FR-023, TEST-FR-025) verifying approval gates, payload hash validation, and execution blocking.",
+    "status": "RESOLVED_BY_ADR"
+  },
+  {
+    "id": "CONFL-007",
+    "severity": "P2",
+    "category": "Project Roadmap & Sequencing",
+    "title": "Implementation Phase Numbering and Milestone Structure Reconciliation",
+    "conflicting_sources": [
+      {
+        "file": "docs/00-PHASE-WISE-IMPLEMENTATION-PLAN.md",
+        "section": "Phases",
+        "lines": "Lines 65-885",
+        "declared_structure": "28 granular phases (Phase 0 through Phase 27)."
+      },
+      {
+        "file": "docs/00-MASTER-REQUIREMENTS-SPECIFICATION.md",
+        "section": "Section 43 & Section 60",
+        "lines": "Lines 1792-1915, 2324-2387",
+        "declared_structure": "13 development phases (Phase 0 to 12) grouped into 7 releases (Release 0.1 to 1.0)."
+      },
+      {
+        "file": "docs/30-IMPLEMENTATION-ROADMAP.md",
+        "section": "Build order & Release gates",
+        "lines": "Lines 6-32",
+        "declared_structure": "11 condensed build stages (Stages 0 to 10) governed by Release Gates G0 to G6."
+      }
+    ],
+    "architectural_impact": "Confusion among developers and auditors regarding sprint planning, progress tracking, and exit criteria.",
+    "root_cause_analysis": "Each document represented project progression at a different zoom level: execution sprints (28 phases), development milestones (13 phases), release packaging (7 releases), and architectural gates (7 gates).",
+    "recommended_resolution": "Formalize the 3-tier planning hierarchy in ADR-0007: Release Milestones (v0.1 to v1.0) contain Condensed Build Stages (0 to 10 with Gates G0 to G6), which decompose into 28 Granular Execution Sprints (Phases 0 to 27). Phase 0 (current) covers Specification and Engineering Contracts.",
+    "governing_adr": "docs/decisions/ADR-0007-implementation-phase-reconciliation.md",
+    "verification_strategy": "Phase exit criteria audit against Gate G0 and Phase 0 acceptance requirements.",
+    "status": "RESOLVED_BY_ADR"
+  },
+  {
+    "id": "CONFL-008",
+    "severity": "P1",
+    "category": "AI Safety & Tool Boundaries",
+    "title": "AI Agent Tool Execution Boundaries and Shell Access Prohibition",
+    "conflicting_sources": [
+      {
+        "file": "docs/00-MASTER-REQUIREMENTS-SPECIFICATION.md",
+        "section": "Section 22 (Tool Security)",
+        "lines": "Lines 1113-1126",
+        "declared_boundary": "States 'No free-form shell tool in production. If shell access is ever required in the lab, use: isolated container, non-root user, command allowlist...'."
+      },
+      {
+        "file": "docs/10-AGENT-ARCHITECTURE.md",
+        "section": "Tool-use controls",
+        "lines": "Line 28",
+        "declared_boundary": "States 'No unrestricted shell, arbitrary URL fetch, generic database access, or dynamic code execution.'"
+      },
+      {
+        "file": "docs/22-AI-SAFETY-CONTROLS.md",
+        "section": "Tool governance",
+        "lines": "Lines 15-20",
+        "declared_boundary": "Explicitly restricts agent tool calling to typed REST/JSON endpoints."
+      }
+    ],
+    "architectural_impact": "Allowing shell execution introduces high-severity remote code execution and prompt injection risks into the agent runtime.",
+    "root_cause_analysis": "Master spec included theoretical laboratory isolation provisions for future offensive/defensive simulations, creating ambiguity regarding whether agents could execute shell commands.",
+    "recommended_resolution": "Reaffirm in ADR-0002 and ADR-0006 that CyberSentinel AI core services and agents NEVER have shell access in any environment (production, staging, or development). All agent capabilities are strictly mediated via typed JSON tool contracts over explicit microservice APIs with rigid input validation.",
+    "governing_adr": "docs/decisions/ADR-0002-standardized-agent-taxonomy.md",
+    "verification_strategy": "Tool registry unit test (TEST-FR-014) asserting zero shell execution tools exist in the tool registry.",
+    "status": "RESOLVED_BY_ADR"
+  },
+  {
+    "id": "CONFL-009",
+    "severity": "P2",
+    "category": "Data Privacy & Redaction Pipeline",
+    "title": "Two-Stage Telemetry Redaction and External AI Model Privacy Boundaries",
+    "conflicting_sources": [
+      {
+        "file": "docs/00-MASTER-REQUIREMENTS-SPECIFICATION.md",
+        "section": "Section 30 (Privacy)",
+        "lines": "Lines 1377-1408",
+        "declared_flow": "Raw Event -> Classification -> Redaction -> Policy Check -> Allowed? -> Model."
+      },
+      {
+        "file": "docs/23-DATA-PRIVACY.md",
+        "section": "Redaction pipeline",
+        "lines": "Lines 10-25",
+        "declared_flow": "Pre-storage redaction and pre-model tokenization."
+      }
+    ],
+    "architectural_impact": "Sending unredacted customer logs to external LLM providers constitutes a severe privacy and compliance violation (GDPR, HIPAA, SOC 2).",
+    "root_cause_analysis": "Documents differed on whether redaction occurs prior to storage (which could impair raw forensic preservation) or immediately prior to model dispatch.",
+    "recommended_resolution": "Ratify a two-stage redaction protocol: Stage 1 (Storage Gate: raw telemetry is encrypted at rest in quarantined storage with strict access controls; searchable index masks passwords, API tokens, and known credentials); Stage 2 (LLM Gateway: before any prompt or context is sent to an external model, personal identifiers and proprietary IP are redacted/tokenized, and tenant AI policy is checked).",
+    "governing_adr": "docs/decisions/ADR-0005-canonical-event-schema-standards.md",
+    "verification_strategy": "Data privacy redaction test suite (TEST-FR-004, TEST-FR-027) verifying credential masking and prompt redaction.",
+    "status": "RESOLVED_BY_ADR"
+  },
+  {
+    "id": "CONFL-010",
+    "severity": "P1",
+    "category": "Verification & Quality Assurance",
+    "title": "Requirements Traceability to Automated Test Suite Identifiers",
+    "conflicting_sources": [
+      {
+        "file": "docs/00-MASTER-REQUIREMENTS-SPECIFICATION.md",
+        "section": "Section 8 (Functional Requirements)",
+        "lines": "Lines 351-563",
+        "declared_requirements": "30 Functional Requirements (FR-001 through FR-030)."
+      },
+      {
+        "file": "docs/24-TESTING-STRATEGY.md",
+        "section": "Test pyramid & Test gates",
+        "lines": "Lines 3-25",
+        "declared_requirements": "General test categories (Unit, Contract, Integration, E2E, Security, Resilience) without explicit mapping to FR-001..FR-030."
+      }
+    ],
+    "architectural_impact": "Lack of 1-to-1 requirement-to-test mapping makes it impossible to verify automated test coverage or satisfy Phase 0 exit acceptance criteria.",
+    "root_cause_analysis": "The testing strategy document focused on test methodology rather than maintaining a granular verification traceability matrix.",
+    "recommended_resolution": "Construct a comprehensive Requirements Traceability Matrix in `docs/audit/TRACEABILITY_MATRIX.md` establishing a direct 1-to-1 mapping from each FR-001 through FR-030 to concrete automated test suite identifiers (`TEST-FR-001` through `TEST-FR-030`), target services, verification methods, and acceptance thresholds.",
+    "governing_adr": "docs/audit/TRACEABILITY_MATRIX.md",
+    "verification_strategy": "Automated matrix completeness verification script confirming 100% of FRs map to test IDs and acceptance criteria.",
+    "status": "RESOLVED_BY_ADR"
+  }
+]

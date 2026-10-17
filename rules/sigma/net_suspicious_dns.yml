@@ -1,0 +1,24 @@
+title: DNS Query to Dynamic DNS or Tor Onion Gateway
+id: d75a894b-1428-4f81-a953-bca908291410
+status: stable
+description: Detects network resolution of known dynamic DNS domains or external anonymity networks
+references:
+    - https://attack.mitre.org/techniques/T1071/004/
+author: CyberSentinel Detection Team
+date: 2026-10-16
+logsource:
+    category: dns_query
+    product: network
+detection:
+    selection:
+        domain|endswith:
+            - '.duckdns.org'
+            - '.ngrok.io'
+            - '.onion.pet'
+    condition: selection
+falsepositives:
+    - Legitimate developer tunnels
+level: medium
+tags:
+    - attack.command_and_control
+    - attack.t1071.004

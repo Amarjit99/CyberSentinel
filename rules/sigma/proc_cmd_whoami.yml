@@ -1,0 +1,21 @@
+title: User Discovery Via Whoami Execution
+id: c4e99f01-7294-4d89-9e8c-8cfda8e8d85f
+status: stable
+description: Detects the execution of whoami.exe for system discovery and privilege enumeration
+references:
+    - https://attack.mitre.org/techniques/T1033/
+author: CyberSentinel Detection Team
+date: 2026-10-16
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection:
+        process_name: 'whoami.exe'
+    condition: selection
+falsepositives:
+    - Legitimate administrative troubleshooting
+level: low
+tags:
+    - attack.discovery
+    - attack.t1033

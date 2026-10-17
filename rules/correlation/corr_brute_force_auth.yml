@@ -1,0 +1,16 @@
+id: "44444444-4444-4444-4444-444444444444"
+name: "Brute Force Authentication Campaign"
+description: "Detects multiple failed authentication alerts targeting the same user account within a 5-minute sliding window."
+severity: "high"
+window_seconds: 300
+threshold: 3
+group_by:
+  - "username"
+rule_matches:
+  - "auth_root_failed"
+  - "Brute-Force"
+tags:
+  - "attack.credential_access"
+  - "attack.t1110"
+enabled: true
+cooldown_seconds: 60

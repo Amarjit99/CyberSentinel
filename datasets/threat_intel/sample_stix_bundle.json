@@ -1,0 +1,71 @@
+{
+  "type": "bundle",
+  "id": "bundle--85c0b112-9c3f-4e08-9657-3f338d77c2fe",
+  "spec_version": "2.1",
+  "objects": [
+    {
+      "type": "indicator",
+      "spec_version": "2.1",
+      "id": "indicator--d3b3164a-25be-4416-8f0a-6663f72e391b",
+      "created": "2026-04-10T12:00:00.000Z",
+      "modified": "2026-04-10T12:00:00.000Z",
+      "pattern": "[ipv4-addr:value = '198.51.100.42']",
+      "pattern_type": "stix",
+      "pattern_version": "2.1",
+      "valid_from": "2026-04-10T12:00:00.000Z",
+      "valid_until": "2027-04-10T12:00:00.000Z",
+      "name": "Cobalt Strike C2 Beacon IPv4",
+      "description": "Adversary command and control IP address identified in threat campaign.",
+      "indicator_types": ["malicious-activity", "c2"],
+      "confidence": 90
+    },
+    {
+      "type": "indicator",
+      "spec_version": "2.1",
+      "id": "indicator--9ab63de8-99d6-444a-9ef8-e7631372551a",
+      "created": "2026-04-11T09:30:00.000Z",
+      "modified": "2026-04-11T09:30:00.000Z",
+      "pattern": "[domain-name:value = 'malicious-c2.duckdns.org']",
+      "pattern_type": "stix",
+      "pattern_version": "2.1",
+      "valid_from": "2026-04-11T09:30:00.000Z",
+      "valid_until": "2027-04-11T09:30:00.000Z",
+      "name": "Dynamic DNS C2 Domain",
+      "description": "Dynamic DNS domain resolving to active adversary infrastructure.",
+      "indicator_types": ["c2"],
+      "confidence": 85
+    },
+    {
+      "type": "indicator",
+      "spec_version": "2.1",
+      "id": "indicator--5403067e-5262-4217-b715-bcabf7a93a32",
+      "created": "2026-04-12T14:15:00.000Z",
+      "modified": "2026-04-12T14:15:00.000Z",
+      "pattern": "[file:hashes.'SHA-256' = '275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f']",
+      "pattern_type": "stix",
+      "pattern_version": "2.1",
+      "valid_from": "2026-04-12T14:15:00.000Z",
+      "valid_until": "2027-04-12T14:15:00.000Z",
+      "name": "Mimikatz Credential Dumper Payload",
+      "description": "SHA-256 hash of known password extraction utility.",
+      "indicator_types": ["malware"],
+      "confidence": 95
+    },
+    {
+      "type": "indicator",
+      "spec_version": "2.1",
+      "id": "indicator--e5c7cf16-8973-455b-b9d9-bb332fceb609",
+      "created": "2023-01-01T00:00:00.000Z",
+      "modified": "2023-01-01T00:00:00.000Z",
+      "pattern": "[ipv4-addr:value = '203.0.113.99']",
+      "pattern_type": "stix",
+      "pattern_version": "2.1",
+      "valid_from": "2023-01-01T00:00:00.000Z",
+      "valid_until": "2023-06-01T00:00:00.000Z",
+      "name": "Expired Historical Phishing IP",
+      "description": "Historical phishing infrastructure whose observation has expired.",
+      "indicator_types": ["phishing"],
+      "confidence": 70
+    }
+  ]
+}

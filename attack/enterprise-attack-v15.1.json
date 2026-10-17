@@ -1,0 +1,638 @@
+{
+  "spec_version": "2.1",
+  "attack_version": "15.1",
+  "release_date": "2024-04-23T00:00:00Z",
+  "source": "MITRE ATT&CK Enterprise v15.1 Official Dataset",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "tactics": [
+    {
+      "id": "TA0043",
+      "short_name": "reconnaissance",
+      "name": "Reconnaissance",
+      "description": "Gathering information to plan future adversary operations."
+    },
+    {
+      "id": "TA0042",
+      "short_name": "resource_development",
+      "name": "Resource Development",
+      "description": "Establishing resources to support operations."
+    },
+    {
+      "id": "TA0001",
+      "short_name": "initial_access",
+      "name": "Initial Access",
+      "description": "Gaining an initial foothold within a network."
+    },
+    {
+      "id": "TA0002",
+      "short_name": "execution",
+      "name": "Execution",
+      "description": "Running adversary-controlled code on a target system."
+    },
+    {
+      "id": "TA0003",
+      "short_name": "persistence",
+      "name": "Persistence",
+      "description": "Maintaining an enduring presence across reboots and credential cycles."
+    },
+    {
+      "id": "TA0004",
+      "short_name": "privilege_escalation",
+      "name": "Privilege Escalation",
+      "description": "Gaining higher-level permissions on a system or network."
+    },
+    {
+      "id": "TA0005",
+      "short_name": "defense_evasion",
+      "name": "Defense Evasion",
+      "description": "Avoiding detection throughout an adversary engagement."
+    },
+    {
+      "id": "TA0006",
+      "short_name": "credential_access",
+      "name": "Credential Access",
+      "description": "Stealing credentials like account names and passwords."
+    },
+    {
+      "id": "TA0007",
+      "short_name": "discovery",
+      "name": "Discovery",
+      "description": "Gaining knowledge about the internal network and systems."
+    },
+    {
+      "id": "TA0008",
+      "short_name": "lateral_movement",
+      "name": "Lateral Movement",
+      "description": "Moving through an environment to access sensitive assets."
+    },
+    {
+      "id": "TA0009",
+      "short_name": "collection",
+      "name": "Collection",
+      "description": "Gathering data of interest to the adversary goal."
+    },
+    {
+      "id": "TA0011",
+      "short_name": "command_and_control",
+      "name": "Command and Control",
+      "description": "Communicating with systems under adversary control."
+    },
+    {
+      "id": "TA0010",
+      "short_name": "exfiltration",
+      "name": "Exfiltration",
+      "description": "Stealing data from an enterprise network."
+    },
+    {
+      "id": "TA0040",
+      "short_name": "impact",
+      "name": "Impact",
+      "description": "Manipulating, interrupting, or destroying systems and data."
+    }
+  ],
+  "techniques": [
+    {
+      "id": "T1059",
+      "name": "Command and Scripting Interpreter",
+      "description": "Adversaries may abuse command and script interpreters to execute commands, scripts, or binaries.",
+      "tactics": [
+        "execution"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Process: Process Creation",
+        "Command: Command Execution"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1059/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1059.001",
+      "name": "Command and Scripting Interpreter: PowerShell",
+      "description": "Adversaries may abuse PowerShell commands and scripts for execution and download cradles.",
+      "tactics": [
+        "execution"
+      ],
+      "parent_id": "T1059",
+      "is_subtechnique": true,
+      "platforms": [
+        "Windows"
+      ],
+      "data_sources": [
+        "Process: Process Creation",
+        "Script: Script Execution"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1059/001/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1059.003",
+      "name": "Command and Scripting Interpreter: Windows Command Shell",
+      "description": "Adversaries may abuse cmd.exe for execution of commands and batch scripts.",
+      "tactics": [
+        "execution"
+      ],
+      "parent_id": "T1059",
+      "is_subtechnique": true,
+      "platforms": [
+        "Windows"
+      ],
+      "data_sources": [
+        "Process: Process Creation",
+        "Command: Command Execution"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1059/003/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1071",
+      "name": "Application Layer Protocol",
+      "description": "Adversaries may communicate using application layer protocols to avoid detection by blending with existing traffic.",
+      "tactics": [
+        "command_and_control"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Network Traffic: Network Traffic Content",
+        "Network Traffic: Network Traffic Flow"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1071/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1071.004",
+      "name": "Application Layer Protocol: DNS",
+      "description": "Adversaries may communicate using the Domain Name System (DNS) application layer protocol to avoid detection.",
+      "tactics": [
+        "command_and_control"
+      ],
+      "parent_id": "T1071",
+      "is_subtechnique": true,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Network Traffic: Network Traffic Content",
+        "Network Traffic: Network Traffic Flow"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1071/004/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1110",
+      "name": "Brute Force",
+      "description": "Adversaries may use brute force techniques to attempt credential guess or crack passwords.",
+      "tactics": [
+        "credential_access"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS",
+        "Identity Provider"
+      ],
+      "data_sources": [
+        "User Account: User Account Authentication",
+        "Logon Session: Logon Session Creation"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1110/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1110.001",
+      "name": "Brute Force: Password Guessing",
+      "description": "Adversaries with no prior knowledge of passwords may systematically guess them on authentication interfaces.",
+      "tactics": [
+        "credential_access"
+      ],
+      "parent_id": "T1110",
+      "is_subtechnique": true,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "User Account: User Account Authentication"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1110/001/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1033",
+      "name": "System Owner/User Discovery",
+      "description": "Adversaries may attempt to identify the primary user, currently logged-in user, or set of users on a system.",
+      "tactics": [
+        "discovery"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Process: Process Creation",
+        "Command: Command Execution"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1033/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1078",
+      "name": "Valid Accounts",
+      "description": "Adversaries may obtain and abuse credentials of existing accounts as a means of gaining Initial Access, Persistence, Privilege Escalation, or Defense Evasion.",
+      "tactics": [
+        "defense_evasion",
+        "initial_access",
+        "persistence",
+        "privilege_escalation"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS",
+        "Identity Provider"
+      ],
+      "data_sources": [
+        "Logon Session: Logon Session Creation",
+        "User Account: User Account Authentication"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1078/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1003",
+      "name": "OS Credential Dumping",
+      "description": "Adversaries may attempt to dump credentials to obtain account login and credential material.",
+      "tactics": [
+        "credential_access"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Process: Process Creation",
+        "Process: Process Access"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1003/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1021",
+      "name": "Remote Services",
+      "description": "Adversaries may use valid accounts to log into a service that accepts remote connections, such as SSH or RDP.",
+      "tactics": [
+        "lateral_movement"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Logon Session: Logon Session Creation",
+        "Network Traffic: Network Connection Creation"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1021/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1047",
+      "name": "Windows Management Instrumentation",
+      "description": "Adversaries may abuse Windows Management Instrumentation (WMI) to execute malicious commands and payloads.",
+      "tactics": [
+        "execution"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows"
+      ],
+      "data_sources": [
+        "Process: Process Creation",
+        "WMI: WMI Creation"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1047/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1053",
+      "name": "Scheduled Task/Job",
+      "description": "Adversaries may abuse task scheduling functionality to facilitate initial or recurring execution of malicious code.",
+      "tactics": [
+        "execution",
+        "persistence",
+        "privilege_escalation"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Scheduled Task: Scheduled Task Creation"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1053/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1070",
+      "name": "Indicator Removal",
+      "description": "Adversaries may delete or alter generated artifacts on a host system to make forensic investigation harder.",
+      "tactics": [
+        "defense_evasion"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "File: File Deletion",
+        "File: File Modification"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1070/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1082",
+      "name": "System Information Discovery",
+      "description": "An adversary may attempt to get detailed information about the operating system and hardware.",
+      "tactics": [
+        "discovery"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Process: Process Creation",
+        "Command: Command Execution"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1082/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1083",
+      "name": "File and Directory Discovery",
+      "description": "Adversaries may enumerate files and directories or search in specific locations of host systems.",
+      "tactics": [
+        "discovery"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Process: Process Creation",
+        "Command: Command Execution"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1083/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1105",
+      "name": "Ingress Tool Transfer",
+      "description": "Adversaries may transfer tools or other files from an external system into a compromised environment.",
+      "tactics": [
+        "command_and_control"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "File: File Creation",
+        "Network Traffic: Network Connection Creation"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1105/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1136",
+      "name": "Create Account",
+      "description": "Adversaries may create an account to maintain access to victim systems or cloud environments.",
+      "tactics": [
+        "persistence"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS",
+        "Identity Provider"
+      ],
+      "data_sources": [
+        "User Account: User Account Creation"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1136/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1190",
+      "name": "Exploit Public-Facing Application",
+      "description": "Adversaries may attempt to exploit a vulnerability in an Internet-facing computer program or software.",
+      "tactics": [
+        "initial_access"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Application Log: Application Log Content",
+        "Network Traffic: Network Traffic Flow"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1190/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1204",
+      "name": "User Execution",
+      "description": "An adversary may rely upon specific actions by a user in order to gain execution.",
+      "tactics": [
+        "execution"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Process: Process Creation"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1204/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1486",
+      "name": "Data Encrypted for Impact",
+      "description": "Adversaries may encrypt data on target systems or within networks to interrupt availability.",
+      "tactics": [
+        "impact"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "File: File Modification"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1486/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1566",
+      "name": "Phishing",
+      "description": "Adversaries may send phishing messages to gain access to victim systems.",
+      "tactics": [
+        "initial_access"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS",
+        "Identity Provider"
+      ],
+      "data_sources": [
+        "Application Log: Application Log Content",
+        "Network Traffic: Network Traffic Content"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1566/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1562",
+      "name": "Impair Defenses",
+      "description": "Adversaries may maliciously modify or disable security tools, logging, or firewalls.",
+      "tactics": [
+        "defense_evasion"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "Service: Service Modification",
+        "Process: Process Termination"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1562/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1027",
+      "name": "Obfuscated Files or Information",
+      "description": "Adversaries may attempt to make an executable or script difficult to discover or analyze.",
+      "tactics": [
+        "defense_evasion"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows",
+        "Linux",
+        "macOS"
+      ],
+      "data_sources": [
+        "File: File Modification",
+        "Script: Script Execution"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1027/",
+      "is_deprecated": false,
+      "is_revoked": false
+    },
+    {
+      "id": "T1086",
+      "name": "PowerShell (Deprecated)",
+      "description": "Revoked technique. Formerly PowerShell execution before sub-techniques reorganization; revoked in favor of T1059.001.",
+      "tactics": [
+        "execution"
+      ],
+      "parent_id": null,
+      "is_subtechnique": false,
+      "platforms": [
+        "Windows"
+      ],
+      "data_sources": [],
+      "url": "https://attack.mitre.org/techniques/T1086/",
+      "is_deprecated": true,
+      "is_revoked": true
+    }
+  ]
+}

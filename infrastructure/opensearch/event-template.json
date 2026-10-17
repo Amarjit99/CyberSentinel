@@ -1,0 +1,27 @@
+{
+  "index_patterns": ["cybersentinel-events-*"],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": false,
+      "properties": {
+        "event_id": { "type": "keyword" },
+        "event_time": { "type": "date" },
+        "source_id": { "type": "keyword" },
+        "event_type": { "type": "keyword" },
+        "hostname": { "type": "keyword" },
+        "username": { "type": "keyword" },
+        "src_ip": { "type": "ip" },
+        "dst_ip": { "type": "ip" },
+        "severity": { "type": "keyword" },
+        "message": { "type": "text" },
+        "classification": { "type": "keyword" }
+      }
+    }
+  }
+}

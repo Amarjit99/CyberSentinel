@@ -1,0 +1,46 @@
+{
+  "scenario_id": "SCN-12-UNAUTHORIZED-TOOL-CALL",
+  "version": "1.0.0",
+  "name": "Unauthorized Tool-Call & Safety Switch Abuse",
+  "description": "Simulates agent or attacker attempting to invoke arbitrary shell commands and execute live response actions.",
+  "objective": "Verify ToolExecutionService blocks unauthorized tool execution and LIVE_RESPONSE_DISABLED=true intercepts live response.",
+  "category": "governance_abuse",
+  "is_negative_case": false,
+  "required_telemetry_sources": [
+    "linux"
+  ],
+  "required_canonical_fields": [
+    "username"
+  ],
+  "attack_technique_ids": [
+    "T1110"
+  ],
+  "synthetic_events": [
+    {
+      "event_id": "a82bf0d8-c8a5-44da-a209-7c10bef94b1b",
+      "timestamp": "2026-10-17T08:55:00Z",
+      "ingest_timestamp": "2026-10-17T08:55:01Z",
+      "source_type": "linux",
+      "source_name": "auditd",
+      "event_type": "authentication",
+      "hostname": "srv-lab-gov.lab.local",
+      "username": "root",
+      "severity": "high"
+    }
+  ],
+  "expected_detection_rules": [
+    "auth_root_failed"
+  ],
+  "unexpected_detection_rules": [],
+  "expected_correlation_rules": [],
+  "expected_incident_severity": "high",
+  "expected_risk_band": "High",
+  "expected_triage_severity": "high",
+  "expected_investigation_hypotheses": [
+    "Unauthorized tool call rejected and response containment blocked by safety switch"
+  ],
+  "expected_uncertainty_or_gaps": [
+    "Live response disabled by architectural design"
+  ],
+  "cleanup_policy": "session_rollback"
+}

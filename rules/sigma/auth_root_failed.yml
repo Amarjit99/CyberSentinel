@@ -1,0 +1,22 @@
+title: Failed Root Account Authentication Attempt
+id: e142270b-b4e5-4a15-b779-5f11438fdfa3
+status: stable
+description: Detects failed authentication attempts targeting the root superuser account on Linux systems
+references:
+    - https://attack.mitre.org/techniques/T1110/
+author: CyberSentinel Detection Team
+date: 2026-10-16
+logsource:
+    category: authentication
+    product: linux
+detection:
+    selection:
+        username: 'root'
+        severity: 'high'
+    condition: selection
+falsepositives:
+    - Legitimate operator password typo
+level: high
+tags:
+    - attack.credential_access
+    - attack.t1110

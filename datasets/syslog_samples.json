@@ -1,0 +1,28 @@
+[
+  {
+    "description": "RFC 3164 BSD Syslog - SSH failed login",
+    "raw": "<34>Oct 16 12:05:01 web-server-01 sshd[24112]: Failed password for invalid user admin from 198.51.100.25 port 54321 ssh2",
+    "expected": {
+      "facility": 4,
+      "severity": 2,
+      "hostname": "web-server-01",
+      "program": "sshd",
+      "pid": 24112,
+      "src_ip": "198.51.100.25",
+      "src_port": 54321
+    }
+  },
+  {
+    "description": "RFC 5424 Syslog - NGINX reverse proxy event",
+    "raw": "<134>1 2026-10-16T12:06:00.000Z edge-gw-02 nginx 1042 ID47 [exampleSDID@32473 iut=\"3\" eventSource=\"Application\"] GET /api/v1/auth HTTP/1.1 401",
+    "expected": {
+      "version": 1,
+      "facility": 16,
+      "severity": 6,
+      "hostname": "edge-gw-02",
+      "app_name": "nginx",
+      "proc_id": "1042",
+      "msg_id": "ID47"
+    }
+  }
+]

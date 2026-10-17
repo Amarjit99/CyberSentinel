@@ -1,0 +1,28 @@
+title: Suspicious PowerShell Download Cradle
+id: f38b9397-6a4a-4d2c-80a5-296839d3c52a
+status: stable
+description: Detects PowerShell command line containing web client download methods
+references:
+    - https://attack.mitre.org/techniques/T1059/001/
+author: CyberSentinel Detection Team
+date: 2026-10-16
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection:
+        process_name: 'powershell.exe'
+        command_line|contains:
+            - 'DownloadString'
+            - 'DownloadFile'
+            - 'Invoke-WebRequest'
+            - 'iwr '
+    filter_update:
+        username: 'trusted_updater'
+    condition: selection and not filter_update
+falsepositives:
+    - Administrative maintenance scripts
+level: high
+tags:
+    - attack.execution
+    - attack.t1059.001

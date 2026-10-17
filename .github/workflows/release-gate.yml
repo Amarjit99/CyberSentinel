@@ -1,0 +1,113 @@
+name: CyberSentinel AI — Release Gate & Container Security Qualification
+
+on:
+  push:
+    branches: ["main", "release/*"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  release-verification:
+    name: Full Release Gate & Container Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install system dependencies & Trivy
+        run: |
+          sudo apt-get update && sudo apt-get install -y wget curl apt-transport-https gnupg
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install cyclonedx-bom
+
+      - name: Install frontend dependencies & build
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build release container image
+        run: |
+          echo "Building production release container image: cybersentinel-ai:release-candidate"
+          docker build -t cybersentinel-ai:release-candidate .
+
+      - name: Scan release container image with Trivy (Policy Enforcement)
+        run: |
+          echo "Scanning container image for HIGH and CRITICAL vulnerabilities..."
+          # Generate SARIF report for audit artifact
+          trivy image \
+            --severity HIGH,CRITICAL \
+            --vuln-type os,library \
+            --format sarif \
+            --output trivy-container-scan.sarif \
+            cybersentinel-ai:release-candidate || true
+
+          # Enforce gate: strictly fail job with exit code 1 if HIGH or CRITICAL vulnerabilities exist
+          trivy image \
+            --severity HIGH,CRITICAL \
+            --vuln-type os,library \
+            --exit-code 1 \
+            --format table \
+            cybersentinel-ai:release-candidate
+
+      - name: Execute automated supply-chain release gate (Strict Release Mode)
+        run: |
+          python scripts/security_gate.py --mode release
+
+      - name: Execute end-to-end release gate script
+        run: |
+          python scripts/run_release_gate.py --mode release
+
+      - name: Upload generated CycloneDX SBOM artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-cyclonedx-sboms
+          path: |
+            artifacts/sbom/sbom-backend.cdx.json
+            artifacts/sbom/sbom-frontend.cdx.json
+          retention-days: 90
+
+      - name: Upload Trivy container vulnerability scan report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-container-scan-report
+          path: trivy-container-scan.sarif
+          retention-days: 90
+
+  publish-release-gate:
+    name: Protected Registry Publishing Gate
+    needs: [release-verification]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') && success()
+    steps:
+      - name: Verify Gate Clearance Before Publishing
+        run: |
+          echo "All mandatory release gate checks, container scanning, and SBOM validations passed."
+          echo "Release candidate cybersentinel-ai:release-candidate is approved for production registry publishing."

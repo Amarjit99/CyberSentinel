@@ -1,0 +1,49 @@
+{
+  "scenario_id": "SCN-05-SUSPICIOUS-DNS",
+  "version": "1.0.0",
+  "name": "Dynamic DNS Query Resolution",
+  "description": "Simulates DNS query resolving a dynamic DNS hostname (.duckdns.org) from an internal host.",
+  "objective": "Verify net_suspicious_dns detection and attribution to T1071.004.",
+  "category": "dns_activity",
+  "is_negative_case": false,
+  "required_telemetry_sources": [
+    "network"
+  ],
+  "required_canonical_fields": [
+    "domain",
+    "src_ip"
+  ],
+  "attack_technique_ids": [
+    "T1071.004"
+  ],
+  "synthetic_events": [
+    {
+      "event_id": "c77d5104-b7d5-4d0c-9825-1459615d86f0",
+      "timestamp": "2026-10-17T08:20:00Z",
+      "ingest_timestamp": "2026-10-17T08:20:01Z",
+      "source_type": "network",
+      "source_name": "zeek",
+      "event_type": "dns_query",
+      "hostname": "workstation-03-lab.lab.local",
+      "src_ip": "10.99.1.55",
+      "dst_ip": "10.99.0.1",
+      "domain": "beacon-c2.duckdns.org",
+      "severity": "medium"
+    }
+  ],
+  "expected_detection_rules": [
+    "net_suspicious_dns"
+  ],
+  "unexpected_detection_rules": [],
+  "expected_correlation_rules": [],
+  "expected_incident_severity": "medium",
+  "expected_risk_band": "Medium",
+  "expected_triage_severity": "medium",
+  "expected_investigation_hypotheses": [
+    "Dynamic DNS query observed to potential external C2 infrastructure"
+  ],
+  "expected_uncertainty_or_gaps": [
+    "Passive DNS history unavailable for newly registered domain"
+  ],
+  "cleanup_policy": "session_rollback"
+}

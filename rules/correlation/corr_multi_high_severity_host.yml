@@ -1,0 +1,10 @@
+id: "66666666-6666-6666-6666-666666666666"
+name: "High Severity Host Anomaly Aggregation"
+description: "Detects multiple high or critical severity alerts observed on the same host within a 30-minute sliding window."
+severity: "critical"
+window_seconds: 1800
+threshold: 2
+group_by:
+  - "hostname"
+enabled: true
+cooldown_seconds: 120

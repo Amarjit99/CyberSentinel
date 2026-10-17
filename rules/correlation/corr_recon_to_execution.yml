@@ -1,0 +1,15 @@
+id: "55555555-5555-5555-5555-555555555555"
+name: "Reconnaissance Followed by Download Cradle"
+description: "Detects discovery command execution followed chronologically by a suspicious script/download cradle on the same endpoint."
+severity: "critical"
+window_seconds: 900
+threshold: 2
+group_by:
+  - "hostname"
+sequence:
+  - step_id: "step_discovery"
+    tag: "attack.t1033"
+  - step_id: "step_execution"
+    tag: "attack.t1059.001"
+enabled: true
+cooldown_seconds: 120

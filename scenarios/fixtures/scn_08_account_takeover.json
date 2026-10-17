@@ -1,0 +1,63 @@
+{
+  "scenario_id": "SCN-08-ACCOUNT-TAKEOVER",
+  "version": "1.0.0",
+  "name": "Account Takeover Indicators",
+  "description": "Simulates failed authentication sequence against admin account followed by credential dumping activity.",
+  "objective": "Verify correlation and high risk score for account takeover indicators.",
+  "category": "account_takeover",
+  "is_negative_case": false,
+  "required_telemetry_sources": [
+    "windows",
+    "linux"
+  ],
+  "required_canonical_fields": [
+    "username"
+  ],
+  "attack_technique_ids": [
+    "T1110",
+    "T1003.001"
+  ],
+  "synthetic_events": [
+    {
+      "event_id": "10a47ce8-830a-4281-90ce-92955ba80c68",
+      "timestamp": "2026-10-17T08:35:00Z",
+      "ingest_timestamp": "2026-10-17T08:35:01Z",
+      "source_type": "linux",
+      "source_name": "auditd",
+      "event_type": "authentication",
+      "hostname": "srv-lab-core.lab.local",
+      "username": "root",
+      "src_ip": "192.168.100.80",
+      "severity": "high"
+    },
+    {
+      "event_id": "5f04a271-c5ce-44e8-80ec-c812fbd06232",
+      "timestamp": "2026-10-17T08:35:30Z",
+      "ingest_timestamp": "2026-10-17T08:35:31Z",
+      "source_type": "windows",
+      "source_name": "sysmon",
+      "event_type": "process_creation",
+      "hostname": "srv-lab-core.lab.local",
+      "username": "root",
+      "process_name": "mimikatz.exe",
+      "command_line": "mimikatz.exe \"sekurlsa::logonpasswords\" exit",
+      "severity": "critical"
+    }
+  ],
+  "expected_detection_rules": [
+    "auth_root_failed",
+    "proc_credential_dump"
+  ],
+  "unexpected_detection_rules": [],
+  "expected_correlation_rules": [],
+  "expected_incident_severity": "critical",
+  "expected_risk_band": "Critical",
+  "expected_triage_severity": "critical",
+  "expected_investigation_hypotheses": [
+    "Privileged account compromised and credential dump tool executed"
+  ],
+  "expected_uncertainty_or_gaps": [
+    "Session token exfiltration cannot be verified from local logs"
+  ],
+  "cleanup_policy": "session_rollback"
+}

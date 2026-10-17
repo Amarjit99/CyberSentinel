@@ -1,0 +1,63 @@
+{
+  "feed_name": "CyberSentinel Operational Threat Feed",
+  "version": "1.0",
+  "source_id": "csai_curated_feed",
+  "indicators": [
+    {
+      "id": "ioc-001",
+      "type": "ipv4",
+      "value": "198.51.100.55",
+      "reputation_score": 95.0,
+      "confidence": 90.0,
+      "classification": "malicious",
+      "threat_actor": "APT-29 (Cozy Bear)",
+      "campaign": "Operation-Sentinel-Test",
+      "first_seen": "2026-01-01T00:00:00Z",
+      "last_seen": "2026-10-15T00:00:00Z",
+      "expires_at": "2027-01-01T00:00:00Z",
+      "description": "Known adversary command and control rendezvous server"
+    },
+    {
+      "id": "ioc-002",
+      "type": "domain",
+      "value": "evil-powershell-payloads.org",
+      "reputation_score": 88.0,
+      "confidence": 85.0,
+      "classification": "malicious",
+      "threat_actor": "FIN7",
+      "campaign": "Carbanak",
+      "first_seen": "2026-02-15T00:00:00Z",
+      "last_seen": "2026-10-16T00:00:00Z",
+      "expires_at": "2027-02-15T00:00:00Z",
+      "description": "Domain hosting encoded script cradles and second-stage droppers"
+    },
+    {
+      "id": "ioc-003",
+      "type": "url",
+      "value": "http://evil-powershell-payloads.org/download/stage2.ps1",
+      "reputation_score": 92.0,
+      "confidence": 95.0,
+      "classification": "c2",
+      "threat_actor": "FIN7",
+      "campaign": "Carbanak",
+      "first_seen": "2026-02-15T00:00:00Z",
+      "last_seen": "2026-10-16T00:00:00Z",
+      "expires_at": "2027-02-15T00:00:00Z",
+      "description": "Direct download cradle payload URL"
+    },
+    {
+      "id": "ioc-004",
+      "type": "hash_sha256",
+      "value": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "reputation_score": 0.0,
+      "confidence": 99.0,
+      "classification": "benign",
+      "threat_actor": null,
+      "campaign": null,
+      "first_seen": "2026-01-01T00:00:00Z",
+      "last_seen": "2026-10-16T00:00:00Z",
+      "expires_at": "2028-01-01T00:00:00Z",
+      "description": "Empty file SHA-256 hash (benign baseline)"
+    }
+  ]
+}

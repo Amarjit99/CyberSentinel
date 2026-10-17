@@ -1,0 +1,50 @@
+{
+  "scenario_id": "SCN-06-LATERAL-MOVEMENT",
+  "version": "1.0.0",
+  "name": "Remote WMI Lateral Movement",
+  "description": "Simulates remote execution via wmic process call create targeting another lab node.",
+  "objective": "Verify proc_lateral_movement_wmi detection and mapping to T1047.",
+  "category": "lateral_movement",
+  "is_negative_case": false,
+  "required_telemetry_sources": [
+    "windows"
+  ],
+  "required_canonical_fields": [
+    "process_name",
+    "command_line"
+  ],
+  "attack_technique_ids": [
+    "T1047"
+  ],
+  "synthetic_events": [
+    {
+      "event_id": "4f1b9d1b-22cd-48b5-9eca-8c29b0dee294",
+      "timestamp": "2026-10-17T08:25:00Z",
+      "ingest_timestamp": "2026-10-17T08:25:01Z",
+      "source_type": "windows",
+      "source_name": "sysmon",
+      "event_type": "process_creation",
+      "hostname": "workstation-pivot-lab.lab.local",
+      "username": "domain_admin",
+      "process_name": "wmic.exe",
+      "process_id": 7820,
+      "command_line": "wmic.exe /node:10.99.1.60 process call create \"powershell.exe -enc AAAA\"",
+      "severity": "high"
+    }
+  ],
+  "expected_detection_rules": [
+    "proc_lateral_movement_wmi"
+  ],
+  "unexpected_detection_rules": [],
+  "expected_correlation_rules": [],
+  "expected_incident_severity": "high",
+  "expected_risk_band": "High",
+  "expected_triage_severity": "high",
+  "expected_investigation_hypotheses": [
+    "Remote process execution via WMI targeting secondary host"
+  ],
+  "expected_uncertainty_or_gaps": [
+    "Destination endpoint execution logs missing"
+  ],
+  "cleanup_policy": "session_rollback"
+}

@@ -1,0 +1,46 @@
+{
+  "scenario_id": "SCN-NEG-01-BENIGN-AUTH",
+  "version": "1.0.0",
+  "name": "Benign Authentication Typo (Below Threshold)",
+  "description": "Simulates a single isolated typo login for root, below correlation threshold of 3.",
+  "objective": "Verify Sigma rule matches once but correlation rule corr_brute_force_auth DOES NOT fire an incident.",
+  "category": "benign_baseline",
+  "is_negative_case": true,
+  "required_telemetry_sources": [
+    "linux"
+  ],
+  "required_canonical_fields": [
+    "username",
+    "event_type"
+  ],
+  "attack_technique_ids": [
+    "T1110"
+  ],
+  "synthetic_events": [
+    {
+      "event_id": "02fa8244-50b9-47ef-8178-12657c3bc220",
+      "timestamp": "2026-10-17T09:00:00Z",
+      "ingest_timestamp": "2026-10-17T09:00:01Z",
+      "source_type": "linux",
+      "source_name": "auditd",
+      "event_type": "authentication",
+      "hostname": "srv-lab-benign.lab.local",
+      "username": "root",
+      "src_ip": "192.168.100.99",
+      "severity": "high"
+    }
+  ],
+  "expected_detection_rules": [
+    "auth_root_failed"
+  ],
+  "unexpected_detection_rules": [],
+  "expected_correlation_rules": [],
+  "expected_incident_severity": null,
+  "expected_risk_band": null,
+  "expected_triage_severity": null,
+  "expected_investigation_hypotheses": [],
+  "expected_uncertainty_or_gaps": [
+    "Single failed login likely benign password typo"
+  ],
+  "cleanup_policy": "session_rollback"
+}

@@ -1,0 +1,43 @@
+{
+  "scenario_id": "SCN-NEG-03-BENIGN-DNS",
+  "version": "1.0.0",
+  "name": "Benign Corporate DNS Resolution",
+  "description": "Simulates standard internal DNS queries to corp.local and approved external cloud vendors.",
+  "objective": "Verify net_suspicious_dns generates zero detections on standard DNS traffic.",
+  "category": "benign_baseline",
+  "is_negative_case": true,
+  "required_telemetry_sources": [
+    "network"
+  ],
+  "required_canonical_fields": [
+    "domain"
+  ],
+  "attack_technique_ids": [
+    "T1071.004"
+  ],
+  "synthetic_events": [
+    {
+      "event_id": "8a0dda29-ce86-425e-ba98-0e4fa75f1a60",
+      "timestamp": "2026-10-17T09:10:00Z",
+      "ingest_timestamp": "2026-10-17T09:10:01Z",
+      "source_type": "network",
+      "source_name": "zeek",
+      "event_type": "dns_query",
+      "hostname": "workstation-corp-lab.lab.local",
+      "src_ip": "10.99.1.101",
+      "domain": "portal.cyber-sentinel.local",
+      "severity": "informational"
+    }
+  ],
+  "expected_detection_rules": [],
+  "unexpected_detection_rules": [
+    "net_suspicious_dns"
+  ],
+  "expected_correlation_rules": [],
+  "expected_incident_severity": null,
+  "expected_risk_band": null,
+  "expected_triage_severity": null,
+  "expected_investigation_hypotheses": [],
+  "expected_uncertainty_or_gaps": [],
+  "cleanup_policy": "session_rollback"
+}

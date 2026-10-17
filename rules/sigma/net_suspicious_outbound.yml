@@ -1,0 +1,25 @@
+title: Suspicious Outbound Connection to High-Risk Port
+id: 7a1f8b2c-3d4e-5f6a-7b8c-9d0e1f2a3b4c
+status: stable
+description: Detects outbound network connections to suspicious TCP ports commonly associated with C2 frameworks or reverse shells
+references:
+    - https://attack.mitre.org/techniques/T1071/
+author: CyberSentinel Detection Team
+date: 2026-10-17
+logsource:
+    category: network_connection
+    product: network
+detection:
+    selection:
+        dst_port:
+            - 4444
+            - 8888
+            - 1337
+            - 31337
+    condition: selection
+falsepositives:
+    - Rare development testing on custom ports
+level: high
+tags:
+    - attack.command_and_control
+    - attack.t1071

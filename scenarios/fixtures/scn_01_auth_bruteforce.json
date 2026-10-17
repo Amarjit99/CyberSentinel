@@ -1,0 +1,97 @@
+{
+  "scenario_id": "SCN-01-AUTH-BRUTEFORCE",
+  "version": "1.0.0",
+  "name": "Brute-Force Authentication Activity",
+  "description": "Simulates a sequence of 4 rapid failed authentication attempts targeting the root superuser account from an isolated lab workstation.",
+  "objective": "Verify that auth_root_failed Sigma rule fires and corr_brute_force_auth correlation triggers an incident.",
+  "category": "authentication",
+  "is_negative_case": false,
+  "required_telemetry_sources": [
+    "linux"
+  ],
+  "required_canonical_fields": [
+    "username",
+    "src_ip",
+    "event_type"
+  ],
+  "attack_technique_ids": [
+    "T1110"
+  ],
+  "synthetic_events": [
+    {
+      "event_id": "03535441-f92b-4fce-b598-fd152445736b",
+      "timestamp": "2026-10-17T08:00:00Z",
+      "ingest_timestamp": "2026-10-17T08:00:01Z",
+      "source_type": "linux",
+      "source_name": "auditd",
+      "event_type": "authentication",
+      "hostname": "srv-lab-auth.lab.local",
+      "username": "root",
+      "src_ip": "192.168.100.45",
+      "dst_ip": "192.168.100.10",
+      "dst_port": 22,
+      "severity": "high"
+    },
+    {
+      "event_id": "d81dffce-0e6f-4e2d-b7d6-c2f3f79dea36",
+      "timestamp": "2026-10-17T08:00:01Z",
+      "ingest_timestamp": "2026-10-17T08:00:02Z",
+      "source_type": "linux",
+      "source_name": "auditd",
+      "event_type": "authentication",
+      "hostname": "srv-lab-auth.lab.local",
+      "username": "root",
+      "src_ip": "192.168.100.45",
+      "dst_ip": "192.168.100.10",
+      "dst_port": 22,
+      "severity": "high"
+    },
+    {
+      "event_id": "426f1d01-8c33-40c5-825d-7642de27e689",
+      "timestamp": "2026-10-17T08:00:02Z",
+      "ingest_timestamp": "2026-10-17T08:00:03Z",
+      "source_type": "linux",
+      "source_name": "auditd",
+      "event_type": "authentication",
+      "hostname": "srv-lab-auth.lab.local",
+      "username": "root",
+      "src_ip": "192.168.100.45",
+      "dst_ip": "192.168.100.10",
+      "dst_port": 22,
+      "severity": "high"
+    },
+    {
+      "event_id": "9f059296-9a5d-4897-a120-ec32426ab794",
+      "timestamp": "2026-10-17T08:00:03Z",
+      "ingest_timestamp": "2026-10-17T08:00:04Z",
+      "source_type": "linux",
+      "source_name": "auditd",
+      "event_type": "authentication",
+      "hostname": "srv-lab-auth.lab.local",
+      "username": "root",
+      "src_ip": "192.168.100.45",
+      "dst_ip": "192.168.100.10",
+      "dst_port": 22,
+      "severity": "high"
+    }
+  ],
+  "expected_detection_rules": [
+    "auth_root_failed"
+  ],
+  "unexpected_detection_rules": [
+    "proc_powershell_download"
+  ],
+  "expected_correlation_rules": [
+    "corr_brute_force_auth"
+  ],
+  "expected_incident_severity": "high",
+  "expected_risk_band": "Medium",
+  "expected_triage_severity": "high",
+  "expected_investigation_hypotheses": [
+    "Multiple failed root authentication attempts detected"
+  ],
+  "expected_uncertainty_or_gaps": [
+    "Source authentication protocol details unavailable"
+  ],
+  "cleanup_policy": "session_rollback"
+}

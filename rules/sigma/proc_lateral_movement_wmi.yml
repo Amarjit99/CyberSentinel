@@ -1,0 +1,24 @@
+title: Lateral Movement via Remote WMI Process Invocation
+id: 8b2c3d4e-5f6a-7b8c-9d0e-1f2a3b4c5d6e
+status: stable
+description: Detects command line invocation of wmic targeting remote hosts to execute processes laterally across endpoints
+references:
+    - https://attack.mitre.org/techniques/T1047/
+author: CyberSentinel Detection Team
+date: 2026-10-17
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection:
+        process_name: 'wmic.exe'
+        command_line|contains:
+            - '/node:'
+            - 'process call create'
+    condition: selection
+falsepositives:
+    - Authorized remote administration scripts
+level: high
+tags:
+    - attack.lateral_movement
+    - attack.t1047
