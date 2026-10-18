@@ -15,6 +15,8 @@ detection:
     condition: selection
 falsepositives:
     - Legitimate administrative troubleshooting
+data_sources:
+    - process_creation:windows
 level: low
 tags:
     - attack.discovery

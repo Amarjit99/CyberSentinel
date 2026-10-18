@@ -80,6 +80,10 @@ class AttackCoverageSummary(BaseModel):
     total_rules_evaluated: int
     unique_techniques_covered: int
     overall_coverage_percentage: float
+    coverage_basis: str = "active_rule_mappings"
+    valid_mapping_count: int = 0
+    deprecated_mapping_count: int = 0
+    unresolved_mapping_count: int = 0
     tactics: List[TacticCoverageItem]
 
 

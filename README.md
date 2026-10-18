@@ -80,6 +80,12 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
+Optional pre-commit hooks:
+```bash
+pre-commit install
+pre-commit run --all-files
+```
+
 ### 2. Environment Configuration
 Copy the template configuration:
 ```bash
@@ -126,6 +132,17 @@ The Compose profile starts PostgreSQL, Redis, OpenSearch, the API, and the
 production-built web shell on loopback-bound ports. OpenSearch is provided for
 scale-out experimentation; relational event metadata remains authoritative.
 
+For optional local HTTPS testing, provide deployment-managed certificate files
+(`tls.crt` and `tls.key`) under `.secrets/tls` or set `TLS_CERT_DIR`, then run:
+
+```bash
+TLS_CERT_DIR=./.secrets/tls docker compose -f compose.yaml -f compose.tls.yaml --profile tls up -d
+```
+
+The TLS profile binds HTTPS to `127.0.0.1:3443`; it does not generate or
+commit certificates and should not be used as a substitute for production
+certificate management.
+
 OpenSearch snapshot operations are explicit and require a mounted filesystem
 repository:
 
@@ -142,5 +159,11 @@ TTL settings documented in the environment reference.
 Additional operational references:
 - [Environment reference](docs/ENVIRONMENT-REFERENCE.md)
 - [Release checklist](docs/RELEASE-CHECKLIST.md)
+- [User and administrator guide](docs/USER-ADMIN-GUIDE.md)
+- [API operations guide](docs/API-OPERATIONS-GUIDE.md)
+- [Rule authoring and agent permissions](docs/RULE-AUTHORING-AND-AGENT-PERMISSIONS.md)
+- [Incident recovery and known limitations](docs/INCIDENT-RECOVERY-AND-LIMITATIONS.md)
+- [Demo scenario and benchmark guide](docs/DEMO-SCENARIO-AND-BENCHMARK-GUIDE.md)
+- [Research reproducibility record](docs/RESEARCH-REPORT-2026-10-17.md)
 - [Deployment and recovery architecture](docs/28-DEPLOYMENT-ARCHITECTURE.md)
 - ATT&CK catalog status: `GET /api/v1/attack/catalog` (release version, checksum, and validation gates)

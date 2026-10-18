@@ -296,10 +296,19 @@ class AttackMappingService:
             t.short_name: set() for t in self.catalog.list_tactics()
         }
         all_covered_techniques: Set[str] = set()
+        valid_mapping_count = 0
+        deprecated_mapping_count = 0
+        unresolved_mapping_count = 0
 
         for rule_id, rule_type, tags in rules:
             for tag in tags:
                 mapping = self.resolve_tag(raw_tag=tag, rule_id=rule_id, rule_type=rule_type)
+                if mapping.status == "valid":
+                    valid_mapping_count += 1
+                elif mapping.status == "deprecated":
+                    deprecated_mapping_count += 1
+                elif mapping.status == "unresolved":
+                    unresolved_mapping_count += 1
                 if mapping.status == "valid" and mapping.technique_id:
                     tech = self.catalog.get_technique(mapping.technique_id)
                     if tech:
@@ -347,6 +356,10 @@ class AttackMappingService:
             total_rules_evaluated=len(rules),
             unique_techniques_covered=len(all_covered_techniques),
             overall_coverage_percentage=overall_pct,
+            coverage_basis="active_rule_mappings",
+            valid_mapping_count=valid_mapping_count,
+            deprecated_mapping_count=deprecated_mapping_count,
+            unresolved_mapping_count=unresolved_mapping_count,
             tactics=tactics_coverage,
         )
 

@@ -170,10 +170,15 @@ def verify_access_token(
         )
 
     # 4. Check subject and role presence
-    if "sub" not in payload_data or "role" not in payload_data:
+    has_role_claim = (
+        "role" in payload_data
+        or "roles" in payload_data
+        or "groups" in payload_data
+    )
+    if "sub" not in payload_data or not has_role_claim:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token payload missing required 'sub' or 'role' claims.",
+            detail="Token payload missing required 'sub' or role/groups claims.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -243,18 +248,37 @@ def get_current_principal(
         # Check if the token is a standard cryptographically signed JWT (3 parts)
         if token.count(".") == 2:
             payload = verify_access_token(token)
-            try:
-                role = RBACRoleEnum(payload["role"])
-            except ValueError:
+            role: Optional[RBACRoleEnum] = None
+            if "role" in payload:
+                try:
+                    role = RBACRoleEnum(payload["role"])
+                except ValueError:
+                    pass
+            if not role:
+                # Enterprise OIDC / IdP claims resolution (groups, roles, scopes)
+                raw_roles = payload.get("roles") or payload.get("groups") or []
+                if isinstance(raw_roles, str):
+                    raw_roles = [raw_roles]
+                for r in raw_roles:
+                    r_clean = str(r).strip().lower()
+                    for r_enum in RBACRoleEnum:
+                        if r_clean in (r_enum.value.lower(), r_enum.name.lower()):
+                            role = r_enum
+                            break
+                    if role:
+                        break
+
+            if not role:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail=f"Token contains unrecognized role '{payload.get('role')}'.",
+                    detail=f"Token contains unrecognized role or groups: '{payload.get('role') or payload.get('groups')}'.",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
-            user_id = str(payload["sub"])
+            user_id = str(payload.get("sub") or payload.get("email") or "oidc-user")
+            user_name = str(payload.get("name") or payload.get("email") or "Authorized Operator")
             return Principal(
                 id=user_id,
-                name="Authorized Operator",
+                name=user_name,
                 roles=[role],
                 is_active=True,
             )

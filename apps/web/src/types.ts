@@ -176,11 +176,24 @@ export interface ThreatIndicator {
 export interface ThreatSource {
   id: string;
   name: string;
-  feed_type: string;
-  url?: string;
+  source_type: string;
+  reliability: string;
+  description?: string;
+  endpoint_url?: string;
   enabled: boolean;
-  last_ingested_at?: string;
-  indicator_count?: number;
+  polling_interval_minutes?: number;
+  updated_at?: string;
+  created_at?: string;
+}
+
+export interface AnalystNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  detection_id?: string;
+  read: boolean;
+  created_at: string;
 }
 
 export interface AttackTactic {

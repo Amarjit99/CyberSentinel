@@ -552,6 +552,8 @@ class ThreatIntelService:
                     "source_name": source.name,
                     "source_type": source.source_type,
                     "reliability": source.reliability,
+                    "enabled": source.enabled,
+                    "endpoint_url": source.endpoint_url,
                     "freshness_state": state,
                     "latest_ingested_at": latest.isoformat() if latest else None,
                     "age_hours": age_hours,

@@ -112,6 +112,9 @@ def test_get_attack_mappings_and_coverage():
     assert cov_data["total_catalog_techniques"] > 0
     assert cov_data["unique_techniques_covered"] > 0
     assert cov_data["overall_coverage_percentage"] > 0.0
+    assert cov_data["coverage_basis"] == "active_rule_mappings"
+    assert cov_data["valid_mapping_count"] > 0
+    assert "unresolved_mapping_count" in cov_data
 
 
 def test_incident_attack_coverage_and_timeline(attack_test_db):

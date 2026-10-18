@@ -16,6 +16,8 @@ detection:
     condition: selection
 falsepositives:
     - Legitimate operator password typo
+data_sources:
+    - authentication:linux
 level: high
 tags:
     - attack.credential_access

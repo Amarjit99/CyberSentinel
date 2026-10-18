@@ -21,7 +21,7 @@ class HealthResponse(BaseModel):
         default="healthy", description="Overall health state (healthy, degraded, unhealthy)"
     )
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    version: str = Field(default="0.1.0", description="Application service version")
+    version: str = Field(default="1.0.0", description="Application service version")
     checks: Dict[str, str] = Field(
         default_factory=lambda: {"database": "connected", "ingestion": "active"}
     )

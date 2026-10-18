@@ -134,8 +134,32 @@ class Detection(Base):
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="open", nullable=False)
+    assigned_to: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    analyst_notes: Mapped[str | None] = mapped_column(String(4000), nullable=True)
+    status_reason: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    status_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    status_updated_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+class AnalystNotification(Base):
+    __tablename__ = "analyst_notifications"
+
+    id: Mapped[str] = mapped_column(
+        String(64), primary_key=True, default=lambda: f"ntf-{uuid4().hex[:24]}"
+    )
+    recipient_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    notification_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    message: Mapped[str] = mapped_column(String(1000), nullable=False)
+    detection_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, index=True, nullable=False
     )
 
 
@@ -532,6 +556,12 @@ class ThreatSource(Base):
     source_type: Mapped[str] = mapped_column(String(64), nullable=False)  # stix21, json_feed, local_file, taxii
     reliability: Mapped[str] = mapped_column(String(32), default="B", nullable=False)  # A, B, C, unknown
     description: Mapped[Optional[str]] = mapped_column(String(255))
+    endpoint_url: Mapped[Optional[str]] = mapped_column(String(512))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
+    polling_interval_minutes: Mapped[Optional[int]] = mapped_column(Integer)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
@@ -624,7 +654,24 @@ class IncidentRiskAssessmentModel(Base):
     incident: Mapped["Incident"] = relationship("Incident", back_populates="risk_assessments")
 
 
-# 25. incident_triage_assessments (Sprint 15: AI Provider Abstraction & Triage Agent)
+# 25. risk_scoring_policies
+class RiskScoringPolicyModel(Base):
+    __tablename__ = "risk_scoring_policies"
+
+    version: Mapped[str] = mapped_column(String(32), primary_key=True)
+    weights_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    band_thresholds_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    stale_intel_discount: Mapped[float] = mapped_column(Float, nullable=False)
+    missing_intel_baseline: Mapped[float] = mapped_column(Float, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    created_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    change_reason: Mapped[str] = mapped_column(String(512), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+# 26. incident_triage_assessments (Sprint 15: AI Provider Abstraction & Triage Agent)
 class IncidentTriageAssessmentModel(Base):
     __tablename__ = "incident_triage_assessments"
 
@@ -660,7 +707,7 @@ class IncidentTriageAssessmentModel(Base):
     incident: Mapped["Incident"] = relationship("Incident", back_populates="triage_assessments")
 
 
-# 26. detection_rule_candidates (Sprint 19: Detection Engineering Assistant)
+# 27. detection_rule_candidates (Sprint 19: Detection Engineering Assistant)
 class DetectionRuleCandidate(Base):
     __tablename__ = "detection_rule_candidates"
 

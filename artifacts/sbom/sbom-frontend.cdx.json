@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:fb02c2ff-420e-4d31-aed1-7f4ce58a8f8a",
+  "serialNumber": "urn:uuid:d07841f4-ed56-4433-ae22-636cc36eaad1",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-17T17:48:00.163Z",
+    "timestamp": "2026-10-18T16:40:46.159Z",
     "lifecycles": [
       {
         "phase": "pre-build"
@@ -19,12 +19,12 @@
       }
     ],
     "component": {
-      "bom-ref": "cybersentinel-web@0.1.0",
+      "bom-ref": "cybersentinel-web@1.0.0",
       "type": "library",
       "name": "web",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "scope": "required",
-      "purl": "pkg:npm/cybersentinel-web@0.1.0",
+      "purl": "pkg:npm/cybersentinel-web@1.0.0",
       "properties": [
         {
           "name": "cdx:npm:package:private",
@@ -3950,7 +3950,7 @@
   ],
   "dependencies": [
     {
-      "ref": "cybersentinel-web@0.1.0",
+      "ref": "cybersentinel-web@1.0.0",
       "dependsOn": [
         "react@19.3.1",
         "react-dom@19.3.1",

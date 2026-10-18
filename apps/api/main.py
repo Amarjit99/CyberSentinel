@@ -2,6 +2,7 @@
 Phase 1 Foundation: Health, Readiness, Event Ingestion & Standardized Error Handling
 """
 
+import json
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -88,9 +89,12 @@ from services.incidents.lifecycle import (
 from services.incidents.manager import incident_manager
 from services.ingestion.pipeline import pipeline
 from services.ingestion.queue import durable_queue, quarantine_manager
-from services.persistence.database import check_database_health, get_db
+from services.ingestion.stream_worker import StreamBatchResult, StreamIngestionWorker
+from services.notifications import NotificationPayload, get_notification_dispatcher
+from services.persistence.database import SessionLocal, check_database_health, get_db
 from services.persistence.models import (
     AgentRun,
+    AnalystNotification,
     AuditEvent,
     Detection,
     DetectionEvent,
@@ -105,6 +109,7 @@ from services.persistence.models import (
     IncidentTriageAssessmentModel,
     ResponseAction,
     ResponseProposal,
+    RiskScoringPolicyModel,
     ThreatIndicator,
     ThreatSource,
 )
@@ -128,9 +133,74 @@ from services.response import (
     list_action_catalogue,
 )
 from services.risk import DeterministicRiskEngine
+from services.risk.models import RiskScoringPolicy
 from services.threat_intel import JsonFeedParser, Stix21FeedParser, ThreatIntelService
 
 logger = logging.getLogger("cybersentinel.api")
+
+DETECTION_STATUS_TRANSITIONS: dict[str, set[str]] = {
+    "open": {"acknowledged", "assigned", "suppressed", "closed"},
+    "acknowledged": {"assigned", "escalated", "suppressed", "closed", "open"},
+    "assigned": {"acknowledged", "escalated", "suppressed", "closed", "open"},
+    "escalated": {"assigned", "suppressed", "closed", "open"},
+    "suppressed": {"open", "closed"},
+    "closed": {"open"},
+}
+
+
+def _risk_policy_from_record(record: RiskScoringPolicyModel) -> RiskScoringPolicy:
+    return RiskScoringPolicy(
+        version=record.version,
+        weights=record.weights_json,
+        band_thresholds=record.band_thresholds_json,
+        stale_intel_discount=record.stale_intel_discount,
+        missing_intel_baseline=record.missing_intel_baseline,
+    )
+
+
+def _persist_initial_risk_policy(db: Session) -> RiskScoringPolicy:
+    record = db.execute(
+        select(RiskScoringPolicyModel)
+        .where(RiskScoringPolicyModel.active.is_(True))
+        .order_by(RiskScoringPolicyModel.created_at.desc())
+    ).scalars().first()
+    if record:
+        return _risk_policy_from_record(record)
+    policy = risk_engine.policy
+    db.add(
+        RiskScoringPolicyModel(
+            version=policy.version,
+            weights_json=policy.weights,
+            band_thresholds_json=policy.band_thresholds,
+            stale_intel_discount=policy.stale_intel_discount,
+            missing_intel_baseline=policy.missing_intel_baseline,
+            active=True,
+            created_by="system:bootstrap",
+            change_reason="Initial persisted risk policy",
+        )
+    )
+    db.commit()
+    return policy
+
+
+class DetectionLifecycleRequest(BaseModel):
+    status: Optional[str] = None
+    assigned_to: Optional[str] = Field(default=None, max_length=128)
+    analyst_notes: Optional[str] = Field(default=None, max_length=4000)
+    reason: Optional[str] = Field(default=None, max_length=512)
+
+
+class ThreatSourceUpdateRequest(BaseModel):
+    reliability: Optional[str] = Field(default=None, pattern="^(A|B|C|unknown)$")
+    description: Optional[str] = Field(default=None, max_length=255)
+    endpoint_url: Optional[str] = Field(default=None, max_length=512)
+    enabled: Optional[bool] = None
+    polling_interval_minutes: Optional[int] = Field(default=None, ge=5, le=10080)
+
+
+class RiskPolicyUpdateRequest(RiskScoringPolicy):
+    change_reason: str = Field(..., min_length=1, max_length=512)
+
 
 response_manager = ResponseManager(live_response_disabled=True)
 playbook_generator = PlaybookGenerator()
@@ -138,6 +208,11 @@ risk_engine = DeterministicRiskEngine(attack_mapping_service=attack_mapping_serv
 triage_agent = TriageAgent(
     attack_mapping_service=attack_mapping_service,
     risk_engine=risk_engine,
+)
+stream_worker = StreamIngestionWorker(
+    ingest_pipeline=pipeline,
+    detection_engine=detection_engine,
+    correlation_engine=correlation_engine,
 )
 
 
@@ -150,6 +225,8 @@ async def lifespan(app: FastAPI):
     from services.persistence.database import init_db
 
     init_db()
+    with SessionLocal() as db:
+        risk_engine.policy = _persist_initial_risk_policy(db)
 
     sigma_dir = Path("rules/sigma")
     if sigma_dir.exists():
@@ -165,7 +242,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CyberSentinel AI Platform API",
     description="Agentic Security Operations & Threat Investigation Platform API",
-    version="0.1.0",
+    version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -338,7 +415,7 @@ async def health_check():
     return HealthResponse(
         status=overall_status,
         timestamp=datetime.now(timezone.utc),
-        version="0.1.0",
+        version="1.0.0",
         checks={
             "database": db_state,
             "ingestion": "active",
@@ -431,6 +508,41 @@ async def ingest_events(
         event_ids=accepted_ids,
         correlation_id=correlation_id,
         timestamp=datetime.now(timezone.utc),
+    )
+
+
+class StreamIngestRequest(BaseModel):
+    client_id: Optional[str] = "stream-client"
+    auto_correlate: bool = True
+    events: list[dict[str, Any]]
+
+
+@app.post(
+    "/api/v1/ingest/stream",
+    response_model=StreamBatchResult,
+    tags=["Telemetry Ingestion"],
+    summary="Real-Time Streaming Telemetry Ingestion & Evaluation",
+)
+async def ingest_stream(
+    payload: StreamIngestRequest,
+    db: Session = Depends(get_db),
+    operator: Principal = Depends(
+        require_roles(
+            [
+                RBACRoleEnum.SOC_ANALYST,
+                RBACRoleEnum.THREAT_HUNTER,
+                RBACRoleEnum.SECURITY_ENGINEER,
+                RBACRoleEnum.ADMIN,
+            ]
+        )
+    ),
+):
+    """Ingest a streaming batch of raw telemetry events with real-time detection and correlation."""
+    return stream_worker.process_stream_batch(
+        raw_events=payload.events,
+        connector_id=payload.client_id or "stream-api",
+        db_session=db,
+        auto_correlate=payload.auto_correlate,
     )
 
 
@@ -903,6 +1015,106 @@ async def search_events(
 
 
 @app.get(
+    "/api/v1/events/export",
+    tags=["Event Exploration"],
+    summary="Export Canonical Event Metadata (CSV or JSONL)",
+)
+async def export_events(
+    format: str = Query("jsonl", pattern="^(jsonl|csv)$"),
+    source_id: Optional[str] = Query(None, max_length=64),
+    event_type: Optional[str] = Query(None, max_length=128),
+    hostname: Optional[str] = Query(None, max_length=255),
+    severity: Optional[str] = Query(None, max_length=32),
+    start_time: Optional[datetime] = Query(None),
+    end_time: Optional[datetime] = Query(None),
+    limit: int = Query(500, ge=1, le=500),
+    db: Session = Depends(get_db),
+    operator: Principal = Depends(
+        require_roles(
+            [
+                RBACRoleEnum.SOC_ANALYST,
+                RBACRoleEnum.THREAT_HUNTER,
+                RBACRoleEnum.SOC_MANAGER,
+                RBACRoleEnum.SECURITY_ENGINEER,
+                RBACRoleEnum.ADMIN,
+            ]
+        )
+    ),
+):
+    """Export filtered events as downloadable JSONL or CSV file."""
+    query = select(EventMetadata)
+    if source_id:
+        query = query.where(EventMetadata.source_id == source_id)
+    if event_type:
+        query = query.where(EventMetadata.event_type == event_type)
+    if hostname:
+        query = query.where(EventMetadata.hostname == hostname)
+    if severity:
+        query = query.where(EventMetadata.severity == severity.lower())
+    if start_time:
+        query = query.where(EventMetadata.event_time >= start_time)
+    if end_time:
+        query = query.where(EventMetadata.event_time <= end_time)
+
+    records = db.execute(query.order_by(EventMetadata.event_time.desc()).limit(limit)).scalars().all()
+
+    if format == "csv":
+        import csv
+        import io
+        from fastapi.responses import Response
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["id", "event_time", "source_id", "event_type", "hostname", "username", "severity", "src_ip", "dst_ip"])
+        for r in records:
+            writer.writerow([r.id, r.event_time.isoformat() if r.event_time else "", r.source_id, r.event_type, r.hostname, r.username, r.severity, r.src_ip, r.dst_ip])
+        return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=events_export.csv"})
+
+    from fastapi.responses import Response
+    lines = [json.dumps({"id": r.id, "event_time": r.event_time.isoformat() if r.event_time else "", "source_id": r.source_id, "event_type": r.event_type, "hostname": r.hostname, "username": r.username, "severity": r.severity, "src_ip": r.src_ip, "dst_ip": r.dst_ip}) for r in records]
+    return Response(content="\n".join(lines), media_type="application/x-ndjson", headers={"Content-Disposition": "attachment; filename=events_export.jsonl"})
+
+
+class WebhookTestRequest(BaseModel):
+    channel: str = Field(default="generic_webhook", description="generic_webhook, slack, pagerduty")
+    title: str = Field(default="Test Alert Notification")
+    message: str = Field(default="CyberSentinel AI test notification dispatch.")
+    severity: str = Field(default="medium")
+
+
+@app.post(
+    "/api/v1/notifications/webhook/test",
+    tags=["Observability"],
+    summary="Test Outbound Webhook Dispatch",
+)
+async def test_webhook_dispatch(
+    body: WebhookTestRequest,
+    operator: Principal = Depends(
+        require_roles([RBACRoleEnum.ADMIN, RBACRoleEnum.SECURITY_ENGINEER])
+    ),
+):
+    """Test outbound webhook connectivity and payload formatting."""
+    dispatcher = get_notification_dispatcher()
+    payload = NotificationPayload(
+        event_type="test_notification",
+        title=body.title,
+        message=body.message,
+        severity=body.severity,
+        metadata={"dispatched_by": operator.id},
+    )
+    records = await dispatcher.dispatch(payload)
+    return {
+        "status": "dispatched",
+        "deliveries": [r.model_dump() for r in records],
+        "configured_channels": {
+            "generic_webhook": bool(dispatcher.webhook_url),
+            "slack": bool(dispatcher.slack_webhook_url),
+            "pagerduty": bool(dispatcher.pagerduty_routing_key),
+        },
+    }
+
+
+@app.get(
     "/api/v1/rules",
     tags=["Detection Engineering"],
     summary="List Active Sigma Detection Rules",
@@ -987,6 +1199,8 @@ async def reload_rules(
 async def list_detections(
     severity: Optional[str] = None,
     rule_id: Optional[str] = None,
+    status_filter: Optional[str] = Query(default=None, alias="status"),
+    assigned_to: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
@@ -1009,6 +1223,10 @@ async def list_detections(
         query = query.where(Detection.severity == severity.lower())
     if rule_id:
         query = query.where(Detection.rule_id == rule_id)
+    if status_filter:
+        query = query.where(Detection.status == status_filter.lower())
+    if assigned_to:
+        query = query.where(Detection.assigned_to == assigned_to)
     query = query.order_by(Detection.created_at.desc()).offset(offset).limit(min(limit, 100))
     detections = db.execute(query).scalars().all()
 
@@ -1021,6 +1239,8 @@ async def list_detections(
                 "rule_version": d.rule_version,
                 "severity": d.severity,
                 "status": d.status,
+                "assigned_to": d.assigned_to,
+                "analyst_notes": d.analyst_notes,
                 "first_seen": d.first_seen.isoformat(),
                 "last_seen": d.last_seen.isoformat(),
                 "created_at": d.created_at.isoformat(),
@@ -1068,6 +1288,13 @@ async def get_detection(
         "rule_version": detection.rule_version,
         "severity": detection.severity,
         "status": detection.status,
+        "assigned_to": detection.assigned_to,
+        "analyst_notes": detection.analyst_notes,
+        "status_reason": detection.status_reason,
+        "status_updated_at": detection.status_updated_at.isoformat()
+        if detection.status_updated_at
+        else None,
+        "status_updated_by": detection.status_updated_by,
         "first_seen": detection.first_seen.isoformat(),
         "last_seen": detection.last_seen.isoformat(),
         "created_at": detection.created_at.isoformat(),
@@ -1076,6 +1303,231 @@ async def get_detection(
             for de in det_events
         ],
     }
+
+
+@app.patch(
+    "/api/v1/detections/{detection_id}/lifecycle",
+    tags=["Detection Engineering"],
+    summary="Update Detection Alert Lifecycle",
+)
+async def update_detection_lifecycle(
+    detection_id: str,
+    request: DetectionLifecycleRequest,
+    db: Session = Depends(get_db),
+    operator: Principal = Depends(
+        require_roles(
+            [
+                RBACRoleEnum.SOC_ANALYST,
+                RBACRoleEnum.DETECTION_ENGINEER,
+                RBACRoleEnum.SOC_MANAGER,
+                RBACRoleEnum.SECURITY_ENGINEER,
+                RBACRoleEnum.ADMIN,
+            ]
+        )
+    ),
+):
+    """Apply an audited, explicitly allowed alert transition or assignment update."""
+    detection = db.get(Detection, detection_id)
+    if not detection:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Detection not found")
+
+    next_status = request.status.lower().strip() if request.status else detection.status
+    previous_status = detection.status
+    if next_status not in DETECTION_STATUS_TRANSITIONS:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid detection status")
+    if next_status != detection.status and next_status not in DETECTION_STATUS_TRANSITIONS.get(
+        detection.status, set()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Invalid detection transition: {detection.status} -> {next_status}",
+        )
+    if request.status is None and request.assigned_to is None and request.analyst_notes is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="At least one lifecycle field is required",
+        )
+
+    changed = {
+        "status": {"from": detection.status, "to": next_status},
+        "assigned_to": {"from": detection.assigned_to, "to": request.assigned_to}
+        if request.assigned_to is not None
+        else None,
+        "analyst_notes_updated": request.analyst_notes is not None,
+        "reason": request.reason,
+    }
+    if request.status is not None:
+        detection.status = next_status
+    if request.assigned_to is not None:
+        detection.assigned_to = request.assigned_to.strip() or None
+    if request.analyst_notes is not None:
+        detection.analyst_notes = request.analyst_notes
+    if request.status is not None:
+        detection.status_reason = request.reason
+        detection.status_updated_at = datetime.now(timezone.utc)
+        detection.status_updated_by = operator.id
+
+    if request.assigned_to is not None and detection.assigned_to:
+        db.add(
+            AnalystNotification(
+                recipient_id=detection.assigned_to,
+                notification_type="alert_assignment",
+                title="Alert assigned to you",
+                message=f"Detection {detection.id} was assigned to you by {operator.id}.",
+                detection_id=detection.id,
+            )
+        )
+        try:
+            get_notification_dispatcher().dispatch_sync(
+                NotificationPayload(
+                    event_type="alert_assignment",
+                    title="Alert assigned",
+                    message=f"Detection {detection.id} assigned to {detection.assigned_to} by {operator.id}",
+                    severity=detection.severity or "medium",
+                    detection_id=detection.id,
+                    recipient_id=detection.assigned_to,
+                )
+            )
+        except Exception:
+            pass
+
+    if request.status is not None and detection.assigned_to and next_status != previous_status:
+        db.add(
+            AnalystNotification(
+                recipient_id=detection.assigned_to,
+                notification_type="alert_status",
+                title="Assigned alert status changed",
+                message=f"Detection {detection.id} moved to {next_status}.",
+                detection_id=detection.id,
+            )
+        )
+        try:
+            get_notification_dispatcher().dispatch_sync(
+                NotificationPayload(
+                    event_type="alert_status",
+                    title="Assigned alert status changed",
+                    message=f"Detection {detection.id} moved to {next_status} by {operator.id}",
+                    severity=detection.severity or "medium",
+                    detection_id=detection.id,
+                    recipient_id=detection.assigned_to,
+                )
+            )
+        except Exception:
+            pass
+
+    db.add(
+        AuditEvent(
+            id=str(uuid4()),
+            actor_type="user",
+            actor_id=operator.id,
+            action="detection:lifecycle_update",
+            object_type="detection",
+            object_id=detection_id,
+            outcome="success",
+            occurred_at=datetime.now(timezone.utc),
+            metadata_redacted=changed,
+        )
+    )
+    db.commit()
+    db.refresh(detection)
+    return {
+        "id": detection.id,
+        "status": detection.status,
+        "assigned_to": detection.assigned_to,
+        "analyst_notes": detection.analyst_notes,
+        "status_reason": detection.status_reason,
+        "status_updated_at": detection.status_updated_at.isoformat()
+        if detection.status_updated_at
+        else None,
+        "status_updated_by": detection.status_updated_by,
+    }
+
+
+@app.get(
+    "/api/v1/notifications",
+    tags=["Alert Management"],
+    summary="List Analyst Notifications",
+)
+async def list_notifications(
+    unread_only: bool = Query(False),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+    operator: Principal = Depends(
+        require_roles(
+            [
+                RBACRoleEnum.SOC_ANALYST,
+                RBACRoleEnum.DETECTION_ENGINEER,
+                RBACRoleEnum.SOC_MANAGER,
+                RBACRoleEnum.SECURITY_ENGINEER,
+                RBACRoleEnum.ADMIN,
+            ]
+        )
+    ),
+):
+    query = select(AnalystNotification).where(
+        AnalystNotification.recipient_id == operator.id
+    )
+    if unread_only:
+        query = query.where(AnalystNotification.read.is_(False))
+    notifications = db.execute(
+        query.order_by(AnalystNotification.created_at.desc()).limit(limit)
+    ).scalars().all()
+    unread_count = db.execute(
+        select(AnalystNotification.id)
+        .where(
+            AnalystNotification.recipient_id == operator.id,
+            AnalystNotification.read.is_(False),
+        )
+    ).scalars().all()
+    return {
+        "count": len(notifications),
+        "unread_count": len(unread_count),
+        "notifications": [
+            {
+                "id": notification.id,
+                "type": notification.notification_type,
+                "title": notification.title,
+                "message": notification.message,
+                "detection_id": notification.detection_id,
+                "read": notification.read,
+                "created_at": notification.created_at.isoformat(),
+            }
+            for notification in notifications
+        ],
+    }
+
+
+@app.patch(
+    "/api/v1/notifications/{notification_id}/read",
+    tags=["Alert Management"],
+    summary="Mark Analyst Notification Read",
+)
+async def mark_notification_read(
+    notification_id: str,
+    db: Session = Depends(get_db),
+    operator: Principal = Depends(
+        require_roles(
+            [
+                RBACRoleEnum.SOC_ANALYST,
+                RBACRoleEnum.DETECTION_ENGINEER,
+                RBACRoleEnum.SOC_MANAGER,
+                RBACRoleEnum.SECURITY_ENGINEER,
+                RBACRoleEnum.ADMIN,
+            ]
+        )
+    ),
+):
+    notification = db.execute(
+        select(AnalystNotification).where(
+            AnalystNotification.id == notification_id,
+            AnalystNotification.recipient_id == operator.id,
+        )
+    ).scalar_one_or_none()
+    if notification is None:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    notification.read = True
+    db.commit()
+    return {"id": notification.id, "read": notification.read}
 
 
 # ==============================================================================
@@ -3077,10 +3529,91 @@ async def list_threat_sources(
                 "source_type": s.source_type,
                 "reliability": s.reliability,
                 "description": s.description,
+                "endpoint_url": s.endpoint_url,
+                "enabled": s.enabled,
+                "polling_interval_minutes": s.polling_interval_minutes,
+                "updated_at": s.updated_at.isoformat(),
                 "created_at": s.created_at.isoformat(),
             }
             for s in sources
         ],
+    }
+
+
+@app.patch(
+    "/api/v1/threat-intel/sources/{source_id}",
+    tags=["Threat Intelligence"],
+    summary="Update Threat Intelligence Source",
+)
+async def update_threat_source(
+    source_id: str,
+    body: ThreatSourceUpdateRequest,
+    db: Session = Depends(get_db),
+    operator: Principal = Depends(
+        require_roles([RBACRoleEnum.SECURITY_ENGINEER, RBACRoleEnum.ADMIN])
+    ),
+):
+    source = db.get(ThreatSource, source_id)
+    if source is None:
+        raise HTTPException(status_code=404, detail="Threat source not found")
+    if (
+        body.reliability is None
+        and body.description is None
+        and body.endpoint_url is None
+        and body.enabled is None
+        and body.polling_interval_minutes is None
+    ):
+        raise HTTPException(status_code=422, detail="At least one source field is required")
+    before = {
+        "reliability": source.reliability,
+        "description": source.description,
+        "endpoint_url": source.endpoint_url,
+        "enabled": source.enabled,
+        "polling_interval_minutes": source.polling_interval_minutes,
+    }
+    if body.reliability is not None:
+        source.reliability = body.reliability
+    if body.description is not None:
+        source.description = body.description
+    if body.endpoint_url is not None:
+        source.endpoint_url = body.endpoint_url
+    if body.enabled is not None:
+        source.enabled = body.enabled
+    if body.polling_interval_minutes is not None:
+        source.polling_interval_minutes = body.polling_interval_minutes
+    db.add(
+        AuditEvent(
+            id=str(uuid4()),
+            actor_type="user",
+            actor_id=operator.id,
+            action="threat_intel:source_update",
+            object_type="threat_source",
+            object_id=source_id,
+            outcome="success",
+            occurred_at=datetime.now(timezone.utc),
+            metadata_redacted={
+                "before": before,
+                "after": {
+                    "reliability": source.reliability,
+                    "description": source.description,
+                    "endpoint_url": source.endpoint_url,
+                    "enabled": source.enabled,
+                    "polling_interval_minutes": source.polling_interval_minutes,
+                },
+            },
+        )
+    )
+    db.commit()
+    return {
+        "id": source.id,
+        "name": source.name,
+        "source_type": source.source_type,
+        "reliability": source.reliability,
+        "description": source.description,
+        "endpoint_url": source.endpoint_url,
+        "enabled": source.enabled,
+        "polling_interval_minutes": source.polling_interval_minutes,
+        "updated_at": source.updated_at.isoformat(),
     }
 
 
@@ -3240,6 +3773,167 @@ async def ingest_threat_feed(
 
 # ==============================================================================
 # Sprint 14 Explainable Incident Risk Engine Endpoints
+
+@app.get(
+    "/api/v1/risk/policy",
+    tags=["Incident Risk Engine"],
+    summary="Get Active Risk Policy",
+)
+async def get_risk_policy(
+    db: Session = Depends(get_db),
+    operator: Principal = Depends(
+        require_roles(
+            [
+                RBACRoleEnum.SOC_ANALYST,
+                RBACRoleEnum.SOC_MANAGER,
+                RBACRoleEnum.SECURITY_ENGINEER,
+                RBACRoleEnum.ADMIN,
+            ]
+        )
+    ),
+):
+    record = db.execute(
+        select(RiskScoringPolicyModel)
+        .where(RiskScoringPolicyModel.active.is_(True))
+        .order_by(RiskScoringPolicyModel.created_at.desc())
+    ).scalars().first()
+    if record:
+        risk_engine.policy = _risk_policy_from_record(record)
+    return risk_engine.policy.model_dump()
+
+
+@app.put(
+    "/api/v1/risk/policy",
+    tags=["Incident Risk Engine"],
+    summary="Update Risk Policy",
+)
+async def update_risk_policy(
+    body: RiskPolicyUpdateRequest,
+    db: Session = Depends(get_db),
+    operator: Principal = Depends(
+        require_roles([RBACRoleEnum.SECURITY_ENGINEER, RBACRoleEnum.ADMIN])
+    ),
+):
+    active_record = db.execute(
+        select(RiskScoringPolicyModel)
+        .where(RiskScoringPolicyModel.active.is_(True))
+        .order_by(RiskScoringPolicyModel.created_at.desc())
+    ).scalars().first()
+    previous = _risk_policy_from_record(active_record) if active_record else risk_engine.policy
+    if body.version == previous.version:
+        raise HTTPException(status_code=409, detail="Risk policy version must change")
+    if db.get(RiskScoringPolicyModel, body.version) is not None:
+        raise HTTPException(status_code=409, detail="Risk policy version already exists")
+    policy = RiskScoringPolicy.model_validate(body.model_dump(exclude={"change_reason"}))
+    db.query(RiskScoringPolicyModel).update({RiskScoringPolicyModel.active: False})
+    db.add(
+        RiskScoringPolicyModel(
+            version=policy.version,
+            weights_json=policy.weights,
+            band_thresholds_json=policy.band_thresholds,
+            stale_intel_discount=policy.stale_intel_discount,
+            missing_intel_baseline=policy.missing_intel_baseline,
+            active=True,
+            created_by=operator.id,
+            change_reason=body.change_reason,
+        )
+    )
+    risk_engine.policy = policy
+    db.add(
+        AuditEvent(
+            id=str(uuid4()),
+            actor_type="user",
+            actor_id=operator.id,
+            action="risk_policy:update",
+            object_type="risk_policy",
+            object_id=policy.version,
+            outcome="success",
+            occurred_at=datetime.now(timezone.utc),
+            metadata_redacted={
+                "previous_version": previous.version,
+                "new_version": policy.version,
+                "change_reason": body.change_reason,
+                "weights": policy.weights,
+                "band_thresholds": policy.band_thresholds,
+            },
+        )
+    )
+    db.commit()
+    return policy.model_dump()
+
+
+@app.get(
+    "/api/v1/risk/policy/history",
+    tags=["Incident Risk Engine"],
+    summary="List Risk Policy Versions",
+)
+async def list_risk_policy_history(
+    db: Session = Depends(get_db),
+    operator: Principal = Depends(
+        require_roles(
+            [
+                RBACRoleEnum.SOC_ANALYST,
+                RBACRoleEnum.SOC_MANAGER,
+                RBACRoleEnum.SECURITY_ENGINEER,
+                RBACRoleEnum.ADMIN,
+            ]
+        )
+    ),
+):
+    records = db.execute(
+        select(RiskScoringPolicyModel).order_by(
+            RiskScoringPolicyModel.created_at.desc(),
+            RiskScoringPolicyModel.version.desc(),
+        )
+    ).scalars().all()
+    return [
+        {
+            **_risk_policy_from_record(record).model_dump(),
+            "active": record.active,
+            "created_by": record.created_by,
+            "change_reason": record.change_reason,
+            "created_at": record.created_at,
+        }
+        for record in records
+    ]
+
+
+@app.post(
+    "/api/v1/risk/policy/{version}/rollback",
+    tags=["Incident Risk Engine"],
+    summary="Activate Prior Risk Policy",
+)
+async def rollback_risk_policy(
+    version: str,
+    db: Session = Depends(get_db),
+    operator: Principal = Depends(
+        require_roles([RBACRoleEnum.SECURITY_ENGINEER, RBACRoleEnum.ADMIN])
+    ),
+):
+    record = db.get(RiskScoringPolicyModel, version)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Risk policy version not found")
+    if record.active:
+        raise HTTPException(status_code=409, detail="Risk policy version is already active")
+    previous = risk_engine.policy.version
+    db.query(RiskScoringPolicyModel).update({RiskScoringPolicyModel.active: False})
+    record.active = True
+    db.add(
+        AuditEvent(
+            id=str(uuid4()),
+            actor_type="user",
+            actor_id=operator.id,
+            action="risk_policy:rollback",
+            object_type="risk_policy",
+            object_id=version,
+            outcome="success",
+            occurred_at=datetime.now(timezone.utc),
+            metadata_redacted={"previous_version": previous, "activated_version": version},
+        )
+    )
+    db.commit()
+    risk_engine.policy = _risk_policy_from_record(record)
+    return risk_engine.policy.model_dump()
 # ==============================================================================
 
 @app.post(

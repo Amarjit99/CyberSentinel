@@ -17,6 +17,7 @@ export function ThreatIntelPage() {
   const [lookupResult, setLookupResult] = useState<unknown>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [updatingSource, setUpdatingSource] = useState<string | null>(null);
 
   // Filter
   const [typeFilter, setTypeFilter] = useState("ALL");
@@ -64,6 +65,19 @@ export function ThreatIntelPage() {
     }
   };
 
+  const handleSourceToggle = async (source: ThreatSource) => {
+    setUpdatingSource(source.id);
+    setError(null);
+    try {
+      const updated = await api.updateThreatSource(source.id, { enabled: !source.enabled });
+      setSources((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update threat source.");
+    } finally {
+      setUpdatingSource(null);
+    }
+  };
+
   const filteredIndicators = indicators.filter((ind) => {
     const matchesSearch =
       searchFilter.trim() === "" ||
@@ -105,10 +119,10 @@ export function ThreatIntelPage() {
       {tab === "indicators" && (
         <div>
           {/* Quick Lookup Bar */}
-          <section className="panel" style={{ marginBottom: "14px" }}>
+          <section className="panel" style={{ marginBottom: "14px" }} aria-labelledby="ioc-lookup-heading">
             <div className="panel-heading">
               <div>
-                <h2>IOC Exact-Match Lookup</h2>
+                <h2 id="ioc-lookup-heading">IOC Exact-Match Lookup</h2>
                 <span className="muted">Check IP, hash, or domain against active curated threat feeds</span>
               </div>
             </div>
@@ -144,10 +158,10 @@ export function ThreatIntelPage() {
           </section>
 
           {/* Indicators List */}
-          <section className="panel">
+          <section className="panel" aria-labelledby="indicator-list-heading">
             <div className="panel-heading">
               <div>
-                <h2>Active Threat Indicators ({filteredIndicators.length})</h2>
+                <h2 id="indicator-list-heading">Active Threat Indicators ({filteredIndicators.length})</h2>
                 <span className="muted">Truthful display of provenance, confidence, and expiration</span>
               </div>
               <div className="filter-group">
@@ -228,17 +242,25 @@ export function ThreatIntelPage() {
       {/* Tab 2: MITRE ATT&CK Matrix & Coverage */}
       {tab === "attack" && (
         <div>
-          <section className="panel" style={{ marginBottom: "14px" }}>
+          <section className="panel" style={{ marginBottom: "14px" }} aria-labelledby="attack-coverage-heading">
             <div className="panel-heading">
               <div>
-                <h2>Enterprise ATT&CK Detection Coverage</h2>
-                <span className="muted">Calculated coverage based on active Sigma and correlation rules</span>
+                <h2 id="attack-coverage-heading">Enterprise ATT&CK Detection Coverage</h2>
+                <span className="muted">
+                  Rule-mapping capability coverage; this does not claim observed telemetry.
+                </span>
               </div>
               {coverage && (
-                <Badge
-                  label={`Overall Coverage: ${((coverage.overall_coverage_percentage as number) || 0).toFixed(1)}%`}
-                  variant="healthy"
-                />
+                <div>
+                  <Badge
+                    label={`Capability: ${((coverage.overall_coverage_percentage as number) || 0).toFixed(1)}%`}
+                    variant="healthy"
+                  />
+                  <small className="muted" style={{ display: "block", marginTop: "4px" }}>
+                    {String(coverage.valid_mapping_count || 0)} mapped ·{" "}
+                    {String(coverage.unresolved_mapping_count || 0)} unresolved
+                  </small>
+                </div>
               )}
             </div>
 
@@ -267,10 +289,10 @@ export function ThreatIntelPage() {
 
       {/* Tab 3: Threat Feeds & Sources */}
       {tab === "sources" && (
-        <section className="panel">
+        <section className="panel" aria-labelledby="threat-sources-heading">
           <div className="panel-heading">
             <div>
-              <h2>Configured Threat Intelligence Feeds</h2>
+              <h2 id="threat-sources-heading">Configured Threat Intelligence Feeds</h2>
               <span className="muted">STIX 2.1, TAXII, and JSON threat feeds</span>
             </div>
           </div>
@@ -287,16 +309,19 @@ export function ThreatIntelPage() {
                     <th>Source Name</th>
                     <th>Feed Type</th>
                     <th>URL / Endpoint</th>
+                    <th>Reliability</th>
                     <th>Status</th>
-                    <th>Last Ingested</th>
+                    <th>Polling</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sources.map((src) => (
                     <tr key={src.id}>
                       <td><strong>{src.name}</strong></td>
-                      <td><code>{src.feed_type}</code></td>
-                      <td><small className="muted">{src.url || "Local file source"}</small></td>
+                      <td><code>{src.source_type}</code></td>
+                      <td><small className="muted">{src.endpoint_url || "Local file source"}</small></td>
+                      <td><code>{src.reliability}</code></td>
                       <td>
                         <Badge
                           label={src.enabled ? "ENABLED" : "DISABLED"}
@@ -304,12 +329,16 @@ export function ThreatIntelPage() {
                           size="small"
                         />
                       </td>
+                      <td><small>{src.polling_interval_minutes ? `${src.polling_interval_minutes} min` : "Manual"}</small></td>
                       <td>
-                        <small>
-                          {src.last_ingested_at
-                            ? new Date(src.last_ingested_at).toLocaleString()
-                            : "Never"}
-                        </small>
+                        <button
+                          className="button-secondary"
+                          type="button"
+                          disabled={updatingSource === src.id}
+                          onClick={() => handleSourceToggle(src)}
+                        >
+                          {updatingSource === src.id ? "Saving…" : src.enabled ? "Disable" : "Enable"}
+                        </button>
                       </td>
                     </tr>
                   ))}

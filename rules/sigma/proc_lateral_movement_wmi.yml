@@ -18,6 +18,8 @@ detection:
     condition: selection
 falsepositives:
     - Authorized remote administration scripts
+data_sources:
+    - process_creation:windows scripts
 level: high
 tags:
     - attack.lateral_movement

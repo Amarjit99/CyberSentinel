@@ -5,6 +5,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 test("RBAC role switching and subscriber notification", () => {
   let activeRole = "SOC_ANALYST";
@@ -122,4 +124,17 @@ test("Investigation claim grounding distinction", () => {
   assert.equal(hypotheses.length, 1);
   assert.ok(facts[0].evidence.length > 0, "Confirmed facts must have supporting evidence IDs");
   assert.equal(hypotheses[0].claim_type, "HYPOTHESIS");
+});
+
+test("Primary navigation and ATT&CK workspace expose keyboard/a11y contracts", () => {
+  const mainSource = readFileSync(resolve("src/main.tsx"), "utf8");
+  const threatIntelSource = readFileSync(resolve("src/pages/ThreatIntelPage.tsx"), "utf8");
+  const stylesSource = readFileSync(resolve("src/styles.css"), "utf8");
+
+  assert.match(mainSource, /nav aria-label="Primary navigation"/);
+  assert.match(mainSource, /aria-current=\{currentPage === p \? "page" : undefined\}/);
+  assert.match(threatIntelSource, /aria-labelledby="attack-coverage-heading"/);
+  assert.match(threatIntelSource, /id="attack-coverage-heading"/);
+  assert.match(stylesSource, /\.nav-item:focus-visible/);
+  assert.match(stylesSource, /outline: 2px solid var\(--accent-teal\)/);
 });

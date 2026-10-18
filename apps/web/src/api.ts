@@ -26,6 +26,7 @@ import {
   TelemetryEvent,
   ThreatIndicator,
   ThreatSource,
+  AnalystNotification,
 } from "./types";
 
 let currentRole: RBACRole = "SOC_ANALYST";
@@ -296,6 +297,32 @@ export const api = {
     return request<Detection>(`/api/v1/detections/${id}`);
   },
 
+  async updateDetectionLifecycle(
+    id: string,
+    update: {
+      status?: string;
+      assigned_to?: string;
+      analyst_notes?: string;
+      reason?: string;
+    },
+  ): Promise<Detection> {
+    return request<Detection>(`/api/v1/detections/${id}/lifecycle`, {
+      method: "PATCH",
+      body: JSON.stringify(update),
+    });
+  },
+
+  async getNotifications(unreadOnly = false): Promise<AnalystNotification[]> {
+    const res = await request<{ notifications: AnalystNotification[] }>(
+      `/api/v1/notifications?unread_only=${unreadOnly ? "true" : "false"}`,
+    );
+    return res.notifications;
+  },
+
+  async markNotificationRead(id: string): Promise<void> {
+    await request(`/api/v1/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" });
+  },
+
   // Threat Intel & MITRE ATT&CK
   async getThreatIndicators(): Promise<ThreatIndicator[]> {
     const res = await request<ThreatIndicator[] | { indicators: ThreatIndicator[] }>("/api/v1/threat-intel/indicators");
@@ -309,6 +336,22 @@ export const api = {
     if (Array.isArray(res)) return res;
     if ("sources" in res && Array.isArray(res.sources)) return res.sources;
     return [];
+  },
+
+  async updateThreatSource(
+    sourceId: string,
+    update: {
+      enabled?: boolean;
+      reliability?: string;
+      description?: string;
+      endpoint_url?: string;
+      polling_interval_minutes?: number;
+    },
+  ): Promise<ThreatSource> {
+    return request<ThreatSource>(`/api/v1/threat-intel/sources/${encodeURIComponent(sourceId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(update),
+    });
   },
 
   async lookupThreatIndicator(indicator: string): Promise<unknown> {
@@ -530,5 +573,35 @@ export const api = {
     if (Array.isArray(res)) return res;
     if ("tools" in res && Array.isArray(res.tools)) return res.tools;
     return [];
+  },
+
+  getEventExportUrl(format: "jsonl" | "csv", params: EventSearchParams): string {
+    const query = new URLSearchParams();
+    query.set("format", format);
+    if (params.source_id) query.set("source_id", params.source_id);
+    if (params.event_type) query.set("event_type", params.event_type);
+    if (params.hostname) query.set("hostname", params.hostname);
+    if (params.severity) query.set("severity", params.severity);
+    if (params.start_time) query.set("start_time", params.start_time);
+    if (params.end_time) query.set("end_time", params.end_time);
+    return `/api/v1/events/export?${query.toString()}`;
+  },
+
+  async testWebhookNotification(payload: { channel: string; title: string; message: string; severity?: string }): Promise<Record<string, unknown>> {
+    return request<Record<string, unknown>>("/api/v1/notifications/webhook/test", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async ingestEventStream(events: Record<string, unknown>[], clientId = "web-stream"): Promise<Record<string, unknown>> {
+    return request<Record<string, unknown>>("/api/v1/ingest/stream", {
+      method: "POST",
+      body: JSON.stringify({
+        client_id: clientId,
+        auto_correlate: true,
+        events,
+      }),
+    });
   },
 };

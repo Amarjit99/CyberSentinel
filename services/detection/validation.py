@@ -182,6 +182,29 @@ class SigmaRuleValidator:
                 )
             )
 
+        false_positives = raw_doc.get("falsepositives")
+        if not isinstance(false_positives, list) or not any(str(item).strip() for item in false_positives):
+            diagnostics.append(
+                ValidationDiagnostic(
+                    severity=ValidationSeverityEnum.WARNING,
+                    code="MISSING_FALSE_POSITIVE_METADATA",
+                    field="falsepositives",
+                    message="Rule should document known benign matches for analyst review.",
+                    suggested_fix="Add one or more concrete false-positive scenarios.",
+                )
+            )
+        data_sources = raw_doc.get("data_sources")
+        if not isinstance(data_sources, list) or not any(str(item).strip() for item in data_sources):
+            diagnostics.append(
+                ValidationDiagnostic(
+                    severity=ValidationSeverityEnum.WARNING,
+                    code="MISSING_DATA_SOURCE_METADATA",
+                    field="data_sources",
+                    message="Rule should identify the telemetry source fields required for evaluation.",
+                    suggested_fix="Add one or more data-source names such as process_creation or dns_query.",
+                )
+            )
+
         # 4. Logsource validation
         logsource = raw_doc.get("logsource")
         if not isinstance(logsource, dict) or not logsource:

@@ -1,0 +1,12 @@
+# Optional local TLS profile. Supply certificates before starting:
+#   TLS_CERT_DIR=./.secrets/tls docker compose -f compose.yaml -f compose.tls.yaml --profile tls up -d
+services:
+  web:
+    profiles: ["tls"]
+    build:
+      args:
+        NGINX_CONFIG: nginx.tls.conf
+    ports:
+      - "127.0.0.1:3443:443"
+    volumes:
+      - ${TLS_CERT_DIR:-./.secrets/tls}:/etc/nginx/tls:ro

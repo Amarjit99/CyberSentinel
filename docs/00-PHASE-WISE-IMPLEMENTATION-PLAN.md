@@ -21,7 +21,7 @@ are supported by repository code and automated validation; unchecked items remai
 ## 0. Current implementation reconciliation
 
 This status was refreshed against the repository source, API routes, persistence models, frontend build,
-security tests, recovery tests, and the full automated suite. The current verification baseline is **579
+security tests, recovery tests, and the full automated suite. The current verification baseline is **601
 passing backend tests**, with Ruff, Mypy, frontend production build, repository secret scanning, SAST,
 dependency auditing, and SBOM generation passing. Container scanning remains not run when Docker/Trivy
 is unavailable.
@@ -29,14 +29,14 @@ is unavailable.
 | Phase | Current status | Remaining material gaps |
 |---|---|---|
 | 0 Specification and contracts | Substantially complete | MVP non-goals and unresolved decisions need final sign-off |
-| 1 Repository and developer experience | Substantially complete | CI workflow and pre-commit automation remain |
-| 2 Docker infrastructure | Partial | Web/OpenSearch services, resource limits, network separation, and TLS profile |
+| 1 Repository and developer experience | Substantially complete | Pre-commit client execution remains environment-specific |
+| 2 Docker infrastructure | Partial | Network separation and runtime validation remain; services, resource limits, and opt-in TLS profile are present |
 | 3 Authentication, RBAC, and audit | Partial | OIDC/session lifecycle and authentication-specific rate-limit deployment |
 | 4 Telemetry ingestion | Substantially complete | Production source authentication and retention operations |
 | 5 Canonical schema and normalization | Substantially complete | Additional production source parsers |
 | 6 Search and event exploration | Substantially complete | Saved searches and optional OpenSearch scale-out |
 | 7 Deterministic detection | Substantially complete | False-positive documentation and owner metadata workflow |
-| 8 Alert management | Substantially complete | Full alert state/assignment/suppression workflow |
+| 8 Alert management | Substantially complete | Managed ownership directory and external notification channels remain |
 | 9 Correlation | Substantially complete | Production multi-worker/state-store validation remains |
 | 10 Incident management | Substantially complete | Export and audited merge/split workflow |
 | 11 Evidence | Partial | Dedicated immutable collection service remains; API-backed relationships, conflict metadata, and completeness reporting are implemented |
@@ -52,11 +52,40 @@ is unavailable.
 | 23 Benchmarking | Substantially complete | Statistical analysis and research report generation |
 | 24 Frontend analyst experience | Partial | Browser E2E/accessibility, ATT&CK/evidence/admin screens |
 | 25 Reliability and cost controls | Partial | Deployment resource limits and operational validation remain |
-| 26 Security hardening | Partial | CI wiring, container scan when available, independent review |
-| 27 Release 1.0 | Partial | Versioned package, complete guides, release checklist and rollback |
+| 26 Security hardening | Partial | Container scan when available and independent review |
+| 27 Release 1.0 | Partial | Versioned package is prepared; complete guides and deployment validation remain |
 
 The checklist below intentionally preserves unchecked items for these gaps; it is no longer interpreted by
 raw checkbox count alone.
+
+### Final repository-to-requirements gap audit — 2026-10-17
+
+The repository contains the documented backend, frontend, scenario, benchmark, security-gate, and
+release artifacts, but the following items remain genuinely open after reconciling source, routes,
+models, tests, workflows, and documentation:
+
+| Area | Evidence-based status | Remaining work |
+|---|---|---|
+| MVP scope freeze | Open | Approve and record explicit MVP non-goals and unresolved product decisions. |
+| Docker network isolation | Partial | Compose now separates frontend, backend, and internal data networks; live Docker/health/TLS qualification remains pending. |
+| OIDC/session integration | Open | Select an identity provider/session architecture and implement deployment integration. |
+| Saved searches | Optional | Implement only if required by the product scope. |
+| Alert lifecycle | Substantially complete | Audited API transitions, assignment, notes, status filters, detail metadata, persistent in-app notifications, and frontend notification display are implemented; external notifications and a managed ownership directory remain. |
+| Detection authoring documentation | Substantially complete | All shipped Sigma rules include maintained false-positive and data-source metadata; review diagnostics identify omissions and production activation blocks incomplete metadata. |
+| ATT&CK coverage UI | Substantially complete | Coverage now reports active-rule mapping capability with valid, deprecated, and unresolved counts and explicitly avoids presenting rule capability as observed telemetry; richer telemetry-observation correlation remains future work. |
+| Threat-intelligence feed operations | Substantially complete | Persisted source lifecycle administration now covers reliability, description, endpoint metadata, enable/disable state, polling interval, audit, and freshness visibility; provider-specific scheduling and live TAXII runtime qualification remain deployment work. |
+| Authorized risk tuning | Partial | Role-restricted, validated, audited policy update and rollback APIs are persisted; multi-worker rollout coordination and policy review UI remain. |
+| Analyst review/correction | Implemented | Investigation review endpoint accepts analyst decisions and notes; broader correction analytics remain optional. |
+| Browser E2E/accessibility | Partial | Primary navigation current-page semantics, landmark labels, visible keyboard focus, and source-level accessibility regression checks are implemented; browser-run workflow, contrast, and permission-state automation remain. |
+| Research report | Partial | Reproducibility record added; a measured report with executed benchmark metrics remains pending. |
+| Pre-commit automation | Implemented | `.pre-commit-config.yaml` defines Ruff, repository hygiene, YAML/JSON, and Python compilation hooks; execution requires the pre-commit client. |
+| Container/runtime qualification | Deferred | Network boundaries are configured; Docker/Trivy image scanning, Compose health validation, and real-certificate TLS validation still require a Docker-capable environment. |
+| Independent security review | Open | Obtain an external or organizationally independent review before production use. |
+
+The following are **not** gaps: the Compose files and TLS profile exist, CI workflows exist, the scenario
+fixtures and benchmark datasets exist, the release is versioned at 1.0.0, and the current backend
+regression baseline is 597 passing tests. These repository facts do not replace deployment-specific
+validation or independent review.
 
 ## 2. Development Rules
 
@@ -210,7 +239,7 @@ Start as a **modular monolith with clear package boundaries** where practical. S
 - [x] Create repository and folder layout.
 - [x] Add Python project configuration and locked dependencies.
 - [x] Add frontend project and TypeScript configuration.
-- [x] Add formatting, linting, type checks, and pre-commit checks.
+- [x] Add formatting, linting, type checks, and pre-commit checks. (`.pre-commit-config.yaml`; hook execution remains environment-dependent.)
 - [x] Add unit-test framework and coverage reporting.
 - [x] Add `.env.example` with safe placeholders.
 - [x] Add structured logging and request IDs.
@@ -245,7 +274,7 @@ Start as a **modular monolith with clear package boundaries** where practical. S
 - [x] OpenSearch index-template/bootstrap command. (`infrastructure/opensearch/event-template.json` and `scripts/bootstrap_opensearch.py`; production retention/snapshot settings remain deployment-specific.)
 - [x] Development resource limits. (Compose services have explicit CPU and memory limits/reservations in both `compose.yaml` and `docker-compose.yml`.)
 - [x] Backup and reset instructions.
-- [ ] Optional local TLS profile for security testing.
+- [x] Optional local TLS profile for security testing. (`compose.tls.yaml` and `nginx.tls.conf` are opt-in and require operator-provided `tls.crt`/`tls.key` files; certificates are not committed.)
 
 ### Acceptance criteria
 - One documented command starts the development environment.
@@ -372,13 +401,13 @@ Start with Windows Event Logs/Sysmon or a sample-log importer if a Windows lab i
 **Goal:** Give analysts a reliable alert workflow.
 
 ### Develop
-- [ ] Alert lifecycle and state machine.
-- [ ] Acknowledge, assign, escalate, suppress, close, and reopen.
-- [ ] Severity and status filters.
-- [ ] Alert ownership and notes.
+- [x] Alert lifecycle and state machine. (Detection lifecycle API enforces explicit transitions.)
+- [x] Acknowledge, assign, escalate, suppress, close, and reopen. (Supported by the audited lifecycle endpoint; reopen is represented as `open` from a closed state.)
+- [x] Severity and status filters. (Detection list API supports severity, rule, status, assignee, and bounded pagination.)
+- [x] Alert ownership and notes. (Assignment and analyst notes are persisted and returned by the API.)
 - [x] Duplicate detection/deduplication.
-- [ ] Audit state changes.
-- [ ] Alert detail page with event/rule evidence.
+- [x] Audit state changes. (Lifecycle changes emit redacted audit events.)
+- [ ] Alert detail page with event/rule evidence. (Backend detail endpoint exists; dedicated frontend alert workflow remains.)
 - [ ] Add notifications only after core state transitions are reliable.
 
 ### Acceptance criteria
@@ -499,7 +528,7 @@ Start with Windows Event Logs/Sysmon or a sample-log importer if a Windows lab i
 - [ ] Explain score contributors.
 - [ ] Record rule/model version and calculation time.
 - [ ] Test edge cases and missing data.
-- [ ] Authorized, audited tuning only.
+- [x] Authorized, audited tuning only. (Versioned persisted policy updates and rollback require security-engineer/admin roles and emit audit events; UI and deployment rollout coordination remain.)
 
 ### Acceptance criteria
 - Same inputs/version produce the same score.
@@ -728,7 +757,7 @@ Start with Windows Event Logs/Sysmon or a sample-log importer if a Windows lab i
 - [ ] Repeatable experiments.
 - [ ] Statistical analysis where appropriate.
 - [ ] Limitations and failure-case analysis.
-- [ ] Research report generation.
+- [ ] Research report generation. (Reproducibility record exists in `docs/RESEARCH-REPORT-2026-10-17.md`; measured benchmark output remains pending an executed run.)
 
 ### Acceptance criteria
 - Metrics can be reproduced from stored experiment configuration.
@@ -807,7 +836,7 @@ Start with Windows Event Logs/Sysmon or a sample-log importer if a Windows lab i
 **Goal:** Test the platform as a security product.
 
 ### Develop
-- [x] Unit, integration, end-to-end, and regression suites.
+- [ ] Unit, integration, end-to-end, and regression suites. (Unit, integration, security, and regression coverage exist; browser/end-to-end automation remains open.)
 - [x] Authentication and authorization testing.
 - [x] API abuse/rate-limit testing. (Implemented server-side bounded rate limiting in packages/rate_limit with Redis atomic Lua sliding-window sorted sets, thread-safe bounded in-memory LRU fallback, Category A-E budgets, safe proxy IP resolution, request body size bounding, and verified via 17 adversarial tests in tests/security/test_api_rate_limit.py under task CSAI-SEC-API-RATE-LIMIT.)
 - [x] Injection and input-validation testing.
@@ -818,7 +847,7 @@ Start with Windows Event Logs/Sysmon or a sample-log importer if a Windows lab i
 - [x] SAST and dependency scanning.
 - [ ] Container image scanning.
 - [x] SBOM generation.
-- [ ] TLS and encryption checks.
+- [x] TLS and encryption checks. (Offline security-gate validation checks the optional TLS profile, TLS 1.2/1.3 directives, read-only certificate mounting, and absence of committed certificate material; runtime/container validation remains deployment-specific.)
 - [x] Backup/restore exercise.
 - [ ] Independent security review before production use.
 
@@ -833,19 +862,19 @@ Start with Windows Event Logs/Sysmon or a sample-log importer if a Windows lab i
 **Goal:** Package a reproducible, testable release.
 
 ### Deliverables
-- [ ] Versioned application release.
-- [ ] Docker Compose deployment profile.
+- [x] Versioned application release. (Backend, API, and frontend package metadata are aligned at 1.0.0; release remains conditional on deployment-specific container validation.)
+- [x] Docker Compose deployment profile. (`compose.yaml`, `docker-compose.yml`, and opt-in `compose.tls.yaml`; runtime validation remains deployment-specific.)
 - [x] Environment variable reference. (`docs/ENVIRONMENT-REFERENCE.md`)
 - [x] Installation and upgrade guide. (README local setup and Compose instructions)
-- [ ] User and administrator guides.
-- [ ] API docs.
-- [ ] Rule authoring guide.
-- [ ] Agent/tool permission guide.
-- [ ] Incident response and recovery guide.
-- [ ] Threat model and security limitations.
-- [ ] Dataset and benchmark documentation.
-- [ ] Research report.
-- [ ] Demo scenario and known limitations.
+- [x] User and administrator guides. (`docs/USER-ADMIN-GUIDE.md`)
+- [x] API docs. (`docs/API-OPERATIONS-GUIDE.md`; generated OpenAPI remains authoritative)
+- [x] Rule authoring guide. (`docs/RULE-AUTHORING-AND-AGENT-PERMISSIONS.md`)
+- [x] Agent/tool permission guide. (`docs/RULE-AUTHORING-AND-AGENT-PERMISSIONS.md`)
+- [x] Incident response and recovery guide. (`docs/INCIDENT-RECOVERY-AND-LIMITATIONS.md`)
+- [x] Threat model and security limitations. (`docs/12-THREAT-MODEL.md`; limitations summarized in `docs/INCIDENT-RECOVERY-AND-LIMITATIONS.md`)
+- [x] Dataset and benchmark documentation. (`docs/DEMO-SCENARIO-AND-BENCHMARK-GUIDE.md`, `docs/26-BENCHMARK-DESIGN.md`)
+- [ ] Research report. (Reproducibility record exists; no fabricated experimental metrics are claimed.)
+- [x] Demo scenario and known limitations. (`docs/DEMO-SCENARIO-AND-BENCHMARK-GUIDE.md`, `docs/INCIDENT-RECOVERY-AND-LIMITATIONS.md`)
 - [x] Release checklist and rollback plan. (`docs/RELEASE-CHECKLIST.md`; production rollback execution remains deployment-specific)
 
 ### Acceptance criteria

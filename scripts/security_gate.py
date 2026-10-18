@@ -336,6 +336,41 @@ def run_container_scan(root: Path) -> Tuple[str, str]:
         return "FAIL", f"Container scan execution error: {exc}"
 
 
+def check_tls_configuration(root: Path) -> Tuple[str, str]:
+    """Validate the repository's optional TLS profile without requiring Docker."""
+    tls_conf = root / "apps" / "web" / "nginx.tls.conf"
+    compose_tls = root / "compose.tls.yaml"
+    if not tls_conf.is_file() or not compose_tls.is_file():
+        return "FAIL", "TLS profile is incomplete: expected Nginx and Compose TLS files."
+
+    nginx = tls_conf.read_text(encoding="utf-8")
+    compose = compose_tls.read_text(encoding="utf-8")
+    required_nginx = (
+        "listen 443 ssl;",
+        "ssl_certificate /etc/nginx/tls/tls.crt;",
+        "ssl_certificate_key /etc/nginx/tls/tls.key;",
+        "ssl_protocols TLSv1.2 TLSv1.3;",
+    )
+    missing = [entry for entry in required_nginx if entry not in nginx]
+    if missing:
+        return "FAIL", f"TLS profile missing required directives: {', '.join(missing)}"
+    if 'profiles: ["tls"]' not in compose or ":/etc/nginx/tls:ro" not in compose:
+        return "FAIL", "TLS Compose profile must be opt-in with a read-only certificate mount."
+
+    committed_material = [
+        path
+        for path in (root / "apps" / "web").glob("*.key")
+        if path.is_file()
+    ] + [
+        path
+        for path in (root / "apps" / "web").glob("*.crt")
+        if path.is_file()
+    ]
+    if committed_material:
+        return "FAIL", "Certificate or private-key material must not be committed to the web image source."
+    return "PASS", "TLS profile directives, opt-in profile, and certificate material policy verified."
+
+
 def generate_and_verify_sboms(root: Path) -> Tuple[str, str]:
     """Generate reproducible CycloneDX SBOMs for backend and frontend and verify secret exclusion."""
     details: List[str] = []
@@ -490,9 +525,14 @@ def main() -> int:
     results["Container Security"] = (cont_status, cont_msg)
 
     # 6. SBOM Generation & Validation
-    print("[*] 6/6 Generating & Validating CycloneDX SBOMs...")
+    print("[*] 6/7 Generating & Validating CycloneDX SBOMs...")
     sbom_status, sbom_msg = generate_and_verify_sboms(root)
     results["SBOM Generation"] = (sbom_status, sbom_msg)
+
+    # 7. Offline TLS Configuration
+    print("[*] 7/7 Checking Offline TLS Configuration...")
+    tls_status, tls_msg = check_tls_configuration(root)
+    results["TLS Configuration"] = (tls_status, tls_msg)
 
     # Summary Display & Honest Release Qualification Evaluation
     print("\n" + "=" * 75)

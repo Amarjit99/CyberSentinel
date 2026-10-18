@@ -19,6 +19,8 @@ detection:
     condition: selection
 falsepositives:
     - Rare development testing on custom ports
+data_sources:
+    - network_connection:network
 level: high
 tags:
     - attack.command_and_control

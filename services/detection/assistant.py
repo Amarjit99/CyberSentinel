@@ -109,6 +109,7 @@ class DetectionEngineeringAssistant:
                 "Legitimate administrative automation scripts",
                 "Internal deployment and management utilities",
             ],
+            "data_sources": [f"{category}:{product}"],
             "level": request.severity.lower() if request.severity.lower() in ("low", "medium", "high", "critical") else "medium",
             "tags": [
                 "attack.execution" if "1059" in target_tech else "attack.defense_evasion",
@@ -484,6 +485,17 @@ class DetectionEngineeringAssistant:
         if cand.status != CandidateRuleStatusEnum.APPROVED.value:
             raise ValueError(
                 f"Cannot activate candidate rule in status '{cand.status}'. Rule must be 'APPROVED' by human review before activation."
+            )
+
+        raw_rule = yaml.safe_load(cand.raw_yaml) or {}
+        if (
+            not isinstance(raw_rule.get("falsepositives"), list)
+            or not any(str(item).strip() for item in raw_rule["falsepositives"])
+            or not isinstance(raw_rule.get("data_sources"), list)
+            or not any(str(item).strip() for item in raw_rule["data_sources"])
+        ):
+            raise ValueError(
+                "Cannot activate candidate without false-positive and data-source metadata."
             )
 
         try:

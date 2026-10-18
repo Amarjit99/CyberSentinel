@@ -15,6 +15,7 @@ from services.detection.models import (
     RuleGenerationRequest,
     RuleTestRequest,
 )
+from services.detection.validation import SigmaRuleValidator
 from services.persistence.models import Base, DetectionRuleCandidate
 
 
@@ -158,6 +159,31 @@ level: medium
     assert len(explanation.limitations_and_blindspots) > 0
     assert any("Administrative user discovery" in fp for fp in explanation.false_positive_risks)
     assert any(m.get("technique_id") == "T1033" for m in explanation.attack_mappings)
+
+
+def test_rule_review_requires_false_positive_and_data_source_metadata():
+    validator = SigmaRuleValidator()
+    report = validator.validate_yaml(
+        """
+title: Metadata Incomplete Rule
+id: 22222222-3333-4444-5555-777777777777
+status: experimental
+description: Test rule metadata quality checks
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection:
+        process_name: whoami.exe
+    condition: selection
+level: low
+tags:
+    - attack.t1033
+"""
+    )
+    codes = {diagnostic.code for diagnostic in report.diagnostics}
+    assert "MISSING_FALSE_POSITIVE_METADATA" in codes
+    assert "MISSING_DATA_SOURCE_METADATA" in codes
 
 
 def test_candidate_human_review_lifecycle(in_memory_db: Session, engineer_principal: Principal):

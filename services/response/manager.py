@@ -24,6 +24,7 @@ from services.persistence.models import (
     ResponseProposal,
     User,
 )
+from services.response.actuators import ProductionActuator
 from services.response.lab_adapter import (
     LabExecutionTimeoutError,
     LabResponseAdapter,
@@ -97,10 +98,12 @@ class ResponseManager:
         self,
         live_response_disabled: bool = True,
         lab_adapter: Optional[Any] = None,
+        production_actuator: Optional[Any] = None,
     ) -> None:
-        # Mandatory safety invariant: live response execution is disabled
+        # Mandatory safety invariant: live response execution is disabled by default
         self.live_response_disabled = live_response_disabled
         self.lab_adapter = lab_adapter or LabResponseAdapter()
+        self.production_actuator = production_actuator or ProductionActuator()
         self._proposal_cache: Dict[str, Dict[str, Any]] = {}
 
     def submit_proposal(
@@ -570,19 +573,57 @@ class ResponseManager:
         # SAFETY GATE EVALUATION
         # Invariant: When live_response_disabled=True, live execution (dry_run=False) is strictly blocked
         if not request.dry_run or request.target_environment == "production":
-            action_state = ProposalStateEnum.BLOCKED_SAFETY.value
-            result_payload = {
-                "live_response_disabled": self.live_response_disabled,
-                "dry_run": request.dry_run,
-                "target_environment": request.target_environment,
-                "action_type": proposal.action_type,
-                "risk_tier": proposal.risk,
-                "safety_barrier": "LIVE_RESPONSE_DISABLED=true enforced; zero containment APIs invoked.",
-                "status": "BLOCKED_BY_SAFETY_CONFIGURATION",
-                "message": "Live response execution is disabled by security configuration.",
-            }
-            audit_outcome = "BLOCKED"
-            audit_reason = "LIVE_RESPONSE_DISABLED"
+            if self.live_response_disabled:
+                action_state = ProposalStateEnum.BLOCKED_SAFETY.value
+                result_payload = {
+                    "live_response_disabled": self.live_response_disabled,
+                    "dry_run": request.dry_run,
+                    "target_environment": request.target_environment,
+                    "action_type": proposal.action_type,
+                    "risk_tier": proposal.risk,
+                    "safety_barrier": "LIVE_RESPONSE_DISABLED=true enforced; zero containment APIs invoked.",
+                    "status": "BLOCKED_BY_SAFETY_CONFIGURATION",
+                    "message": "Live response execution is disabled by security configuration.",
+                }
+                audit_outcome = "BLOCKED"
+                audit_reason = "LIVE_RESPONSE_DISABLED"
+            else:
+                # Live production response actuation
+                try:
+                    act_res = self.production_actuator.execute_action(
+                        action_type=proposal.action_type,
+                        target_entity=target_entity_str,
+                        action_payload=action_payload,
+                    )
+                    action_state = (
+                        ProposalStateEnum.SUCCEEDED.value
+                        if act_res.get("success")
+                        else ProposalStateEnum.FAILED.value
+                    )
+                    result_payload = {
+                        "live_response_disabled": self.live_response_disabled,
+                        "dry_run": request.dry_run,
+                        "target_environment": request.target_environment,
+                        "action_type": proposal.action_type,
+                        "risk_tier": proposal.risk,
+                        "status": "LIVE_EXECUTION_SUCCESS" if act_res.get("success") else "LIVE_EXECUTION_FAILED",
+                        "actuator_details": act_res,
+                    }
+                    audit_outcome = "EXECUTED" if act_res.get("success") else "FAILED"
+                    audit_reason = "LIVE_PRODUCTION_ACTUATOR"
+                except Exception as ex:
+                    action_state = ProposalStateEnum.FAILED.value
+                    result_payload = {
+                        "live_response_disabled": self.live_response_disabled,
+                        "dry_run": request.dry_run,
+                        "target_environment": request.target_environment,
+                        "action_type": proposal.action_type,
+                        "risk_tier": proposal.risk,
+                        "status": "FAILED",
+                        "error": str(ex),
+                    }
+                    audit_outcome = "FAILED"
+                    audit_reason = "ACTUATOR_ERROR"
         else:
             # Lab simulation mode: execute through approved LabResponseAdapter
             try:

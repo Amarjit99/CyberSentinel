@@ -107,7 +107,8 @@ nav {
 .nav-item:focus-visible {
   background: #12243a;
   color: var(--text-primary);
-  outline: none;
+  outline: 2px solid var(--accent-teal);
+  outline-offset: 2px;
 }
 
 .nav-item.active {
@@ -194,6 +195,32 @@ h4 {
   color: #9cafc5;
   font-size: 12px;
   padding-top: 6px;
+}
+
+.notification-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.notification-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 260px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  background: var(--panel);
+  text-align: left;
+  cursor: pointer;
+}
+
+.notification-item.unread {
+  border-color: var(--accent-teal);
 }
 
 .status-dot {
@@ -1009,4 +1036,3 @@ tr:last-child td {
   background: var(--color-critical, #ff5c67);
   box-shadow: 0 0 8px rgba(255, 92, 103, 0.6);
 }
-

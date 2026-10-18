@@ -18,6 +18,8 @@ detection:
     condition: selection
 falsepositives:
     - Legitimate developer tunnels
+data_sources:
+    - dns_query:network
 level: medium
 tags:
     - attack.command_and_control

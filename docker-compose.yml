@@ -16,6 +16,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - data
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -40,6 +42,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - data
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -69,6 +73,8 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
+    networks:
+      - data
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -91,6 +97,9 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    networks:
+      - frontend
+      - backend
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -120,6 +129,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - backend
+      - data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 10s
@@ -143,3 +155,12 @@ volumes:
     name: cybersentinel_redis_data
   opensearch_data:
     name: cybersentinel_opensearch_data
+
+networks:
+  frontend:
+    name: cybersentinel_frontend
+  backend:
+    name: cybersentinel_backend
+  data:
+    name: cybersentinel_data
+    internal: true

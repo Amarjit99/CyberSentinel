@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { api, getActiveRole, setActiveRole } from "./api";
 import { RoleSwitcher } from "./components/common";
 import { AdminPage } from "./pages/AdminPage";
+import { AlertsPage } from "./pages/AlertsPage";
 import { BenchmarkPage } from "./pages/BenchmarkPage";
 import { DetectionRulesPage } from "./pages/DetectionRulesPage";
 import { EventsPage } from "./pages/EventsPage";
@@ -12,11 +13,12 @@ import { OverviewPage } from "./pages/OverviewPage";
 import { ResponsePage } from "./pages/ResponsePage";
 import { ThreatIntelPage } from "./pages/ThreatIntelPage";
 import "./styles.css";
-import { RBACRole } from "./types";
+import { AnalystNotification, RBACRole } from "./types";
 
 export type Page =
   | "Overview"
   | "Events"
+  | "Alerts"
   | "Incidents"
   | "Investigations"
   | "Threat Intelligence"
@@ -28,6 +30,7 @@ export type Page =
 const pages: Page[] = [
   "Overview",
   "Events",
+  "Alerts",
   "Incidents",
   "Investigations",
   "Threat Intelligence",
@@ -41,6 +44,7 @@ function iconFor(page: Page) {
   const icons: Record<Page, string> = {
     Overview: "⌂",
     Events: "≋",
+    Alerts: "!",
     Incidents: "◆",
     Investigations: "⌕",
     "Threat Intelligence": "◈",
@@ -56,6 +60,7 @@ function descriptions(page: Page): string {
   const map: Record<Page, string> = {
     Overview: "Operational triage dashboard: incident severity queues, detection alerts, and system health.",
     Events: "Telemetry event search and inspection with source provenance and host/network filtering.",
+    Alerts: "Detection alert lifecycle, assignment, analyst notes, and audited state transitions.",
     Incidents: "Incident queue, timeline, entities, evidence grounding, deterministic risk, and lifecycle state transitions.",
     Investigations: "Bounded AI investigation agent runs, verified claims vs hypotheses, evidence citations, and human reviews.",
     "Threat Intelligence": "Active indicators of compromise, STIX/TAXII feeds, and MITRE ATT&CK coverage mapping.",
@@ -72,6 +77,7 @@ function App() {
   const [activeRole, setRole] = useState<RBACRole>(getActiveRole());
   const [apiState, setApiState] = useState<"healthy" | "degraded" | "offline">("healthy");
   const [apiDetail, setApiDetail] = useState("Probing backend APIs…");
+  const [notifications, setNotifications] = useState<AnalystNotification[]>([]);
 
   // Cross-page navigation parameters
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
@@ -98,6 +104,19 @@ function App() {
     const interval = setInterval(checkHealth, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        setNotifications(await api.getNotifications());
+      } catch {
+        setNotifications([]);
+      }
+    };
+    void loadNotifications();
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [activeRole]);
 
   const handleRoleChange = (role: RBACRole) => {
     setActiveRole(role);
@@ -131,6 +150,7 @@ function App() {
               key={p}
               type="button"
               className={`nav-item ${currentPage === p ? "active" : ""}`}
+              aria-current={currentPage === p ? "page" : undefined}
               onClick={() => {
                 if (p !== "Incidents") setSelectedIncidentId(null);
                 if (p !== "Investigations") setSelectedRunId(null);
@@ -159,6 +179,25 @@ function App() {
             <h1>{currentPage}</h1>
           </div>
           <div className="topbar-right">
+            <div className="notification-menu" aria-label="Analyst notifications">
+              <span aria-live="polite">
+                Notifications{notifications.some((item) => !item.read) ? ` (${notifications.filter((item) => !item.read).length})` : ""}
+              </span>
+              {notifications.slice(0, 3).map((notification) => (
+                <button
+                  key={notification.id}
+                  type="button"
+                  className={`notification-item ${notification.read ? "" : "unread"}`}
+                  onClick={() => {
+                    void api.markNotificationRead(notification.id);
+                    setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, read: true } : item));
+                  }}
+                >
+                  <strong>{notification.title}</strong>
+                  <small>{notification.message}</small>
+                </button>
+              ))}
+            </div>
             <div className="system-status" title={apiDetail}>
               <span className={`status-dot ${apiState}`} />
               <span>{apiState === "healthy" ? "System Ready" : apiState}</span>
@@ -177,6 +216,9 @@ function App() {
         )}
         {currentPage === "Events" && (
           <EventsPage />
+        )}
+        {currentPage === "Alerts" && (
+          <AlertsPage />
         )}
         {currentPage === "Incidents" && (
           <IncidentsPage

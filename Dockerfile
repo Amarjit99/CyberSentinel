@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 # Set working directory and environment variables
 WORKDIR /app
@@ -9,8 +9,8 @@ ENV PYTHONUNBUFFERED=1 \
 # Create non-root system user
 RUN groupadd -r appgroup && useradd -r -g appgroup -s /sbin/nologin appuser
 
-# Install curl/utilities for healthchecks
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install curl/utilities for healthchecks and apply latest distribution security patches
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
