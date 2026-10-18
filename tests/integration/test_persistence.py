@@ -140,7 +140,8 @@ def test_response_action_idempotency_key_uniqueness(test_db: Session):
 
 def test_alembic_offline_migration_compiles():
     """Verify that Alembic initial migration can be compiled to offline SQL without error."""
-    cmd = [".venv/Scripts/alembic", "-c", "infrastructure/alembic.ini", "upgrade", "head", "--sql"]
+    import sys
+    cmd = [sys.executable, "-m", "alembic", "-c", "infrastructure/alembic.ini", "upgrade", "head", "--sql"]
     result = subprocess.run(cmd, capture_output=True, text=True)
     assert result.returncode == 0, f"Alembic offline SQL generation failed: {result.stderr}"
     assert "CREATE TABLE incidents" in result.stdout
