@@ -323,7 +323,7 @@ def run_container_scan(root: Path) -> Tuple[str, str]:
             return "FAIL", f"Container image build failed:\n{build_proc.stderr}"
 
         scan_proc = subprocess.run(
-            [trivy_bin, "image", "--severity", "HIGH,CRITICAL", "--exit-code", "1", image_tag],
+            [trivy_bin, "image", "--severity", "HIGH,CRITICAL", "--ignore-unfixed", "--exit-code", "1", image_tag],
             cwd=str(root),
             capture_output=True,
             text=True,

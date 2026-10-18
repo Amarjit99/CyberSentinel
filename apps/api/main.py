@@ -1061,6 +1061,7 @@ async def export_events(
     if format == "csv":
         import csv
         import io
+
         from fastapi.responses import Response
 
         output = io.StringIO()

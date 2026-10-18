@@ -86,20 +86,24 @@ class StreamIngestionWorker:
                             det_id = f"det-{uuid4().hex[:12]}"
                             matched_detections.append(det_id)
 
+                        entity_type = "host" if norm_result.event.hostname else "user"
+                        entity_id = norm_result.event.hostname or norm_result.event.username or "unknown"
+                        severity_str = match.severity.value if hasattr(match.severity, "value") else str(match.severity)
+
                         # If db_session provided, persist Detection
                         if db_session:
                             detection_record = Detection(
                                 id=det_id,
                                 rule_id=match.rule_id,
                                 rule_name=match.rule_title,
-                                severity=match.severity or "medium",
+                                severity=severity_str,
                                 status="open",
-                                entity_type=match.entity_type or "host",
-                                entity_id=match.entity_id or "unknown",
+                                entity_type=entity_type,
+                                entity_id=entity_id,
                                 event_ids=[res.event_id or str(norm_result.event.event_id)],
-                                confidence=match.confidence or 0.8,
-                                mitre_tactics=match.mitre_tactics or [],
-                                mitre_techniques=match.mitre_techniques or [],
+                                confidence=0.85,
+                                mitre_tactics=match.mitre_attack_ids,
+                                mitre_techniques=match.mitre_attack_ids,
                                 detected_at=datetime.now(timezone.utc),
                             )
                             db_session.add(detection_record)
@@ -109,11 +113,11 @@ class StreamIngestionWorker:
                             try:
                                 self.correlation_engine.process_detection(
                                     detection_id=det_id,
-                                    entity_type=match.entity_type or "host",
-                                    entity_id=match.entity_id or "unknown",
+                                    entity_type=entity_type,
+                                    entity_id=entity_id,
                                     rule_id=match.rule_id,
-                                    severity=match.severity or "medium",
-                                    tactics=match.mitre_tactics or [],
+                                    severity=severity_str,
+                                    tactics=match.mitre_attack_ids,
                                     timestamp=datetime.now(timezone.utc),
                                     db_session=db_session,
                                 )
@@ -121,14 +125,14 @@ class StreamIngestionWorker:
                                 logger.debug("Correlation skipped or completed: %s", ce)
 
                         # 4. High / Critical notification dispatch
-                        if match.severity in ("high", "critical"):
+                        if severity_str.lower() in ("high", "critical"):
                             try:
                                 self.dispatcher.dispatch_sync(
                                     NotificationPayload(
                                         event_type="alert_created",
                                         title=f"Detection: {match.rule_title}",
-                                        message=f"Rule {match.rule_id} triggered on entity {match.entity_id} with severity {match.severity}",
-                                        severity=match.severity,
+                                        message=f"Rule {match.rule_id} triggered on entity {entity_id} with severity {severity_str}",
+                                        severity=severity_str,
                                         detection_id=det_id,
                                     )
                                 )

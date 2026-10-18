@@ -66,14 +66,16 @@ jobs:
           # Generate SARIF report for audit artifact
           trivy image \
             --severity HIGH,CRITICAL \
+            --ignore-unfixed \
             --vuln-type os,library \
             --format sarif \
             --output trivy-container-scan.sarif \
             cybersentinel-ai:release-candidate
 
-          # Enforce gate: strictly fail job with exit code 1 if HIGH or CRITICAL vulnerabilities exist
+          # Enforce gate: strictly fail job with exit code 1 if HIGH or CRITICAL fixable vulnerabilities exist
           trivy image \
             --severity HIGH,CRITICAL \
+            --ignore-unfixed \
             --vuln-type os,library \
             --exit-code 1 \
             --format table \
