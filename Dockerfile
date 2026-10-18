@@ -39,8 +39,11 @@ COPY .trivyignore ./
 # Install project itself into the venv without copying dev/frontend bloat
 RUN uv pip install --no-deps -e .
 
-# Clean up uv binary to reduce attack surface and container size
-RUN rm -f /bin/uv
+# Clean up uv binary and base image build packages to minimize attack surface and eliminate CVEs
+RUN rm -f /bin/uv && \
+    rm -rf /usr/local/lib/python3.11/site-packages/setuptools* \
+           /usr/local/lib/python3.11/site-packages/wheel* \
+           /usr/local/lib/python3.11/site-packages/pip*
 
 # Change ownership to non-privileged user
 RUN chown -R appuser:appgroup /app
