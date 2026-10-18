@@ -1,0 +1,8 @@
+# CyberSentinel AI — Documented Supply-Chain Security Exceptions
+# Scope: Transitive diskcache 5.6.3 introduced by pySigma 2.0.1
+# Governance: See scripts/security_gate.py SECURITY_EXCEPTIONS
+# Expiration: 2026-12-31
+
+CVE-2025-69872
+GHSA-w8v5-vhqr-4h9v
+PYSEC-2026-2447

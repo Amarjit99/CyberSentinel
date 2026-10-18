@@ -67,6 +67,7 @@ jobs:
           trivy image \
             --severity HIGH,CRITICAL \
             --ignore-unfixed \
+            --ignorefile .trivyignore \
             --vuln-type os,library \
             --format sarif \
             --output trivy-container-scan.sarif \
@@ -76,6 +77,7 @@ jobs:
           trivy image \
             --severity HIGH,CRITICAL \
             --ignore-unfixed \
+            --ignorefile .trivyignore \
             --vuln-type os,library \
             --exit-code 1 \
             --format table \

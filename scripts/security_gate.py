@@ -322,8 +322,14 @@ def run_container_scan(root: Path) -> Tuple[str, str]:
         if build_proc.returncode != 0:
             return "FAIL", f"Container image build failed:\n{build_proc.stderr}"
 
+        trivy_cmd = [trivy_bin, "image", "--severity", "HIGH,CRITICAL", "--ignore-unfixed"]
+        trivyignore_path = root / ".trivyignore"
+        if trivyignore_path.is_file():
+            trivy_cmd.extend(["--ignorefile", str(trivyignore_path)])
+        trivy_cmd.extend(["--exit-code", "1", image_tag])
+
         scan_proc = subprocess.run(
-            [trivy_bin, "image", "--severity", "HIGH,CRITICAL", "--ignore-unfixed", "--exit-code", "1", image_tag],
+            trivy_cmd,
             cwd=str(root),
             capture_output=True,
             text=True,
