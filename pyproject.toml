@@ -1,6 +1,10 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "cybersentinel-ai"
-version = "0.1.0"
+version = "1.0.0"
 description = "CyberSentinel AI — Agentic Security Operations & Threat Investigation Platform"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -59,3 +63,6 @@ exclude = [
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 asyncio_mode = "auto"
+
+[tool.setuptools.packages.find]
+include = ["apps*", "services*", "packages*", "schemas*", "attack*", "scenarios*"]
