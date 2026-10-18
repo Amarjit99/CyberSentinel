@@ -149,6 +149,26 @@ export function EventsPage() {
             <h2>Matching Events ({total})</h2>
             <span className="muted">Showing up to {params.limit} records per page</span>
           </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <a
+              className="button-secondary"
+              href={api.getEventExportUrl("jsonl", params)}
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+            >
+              ⬇ Export NDJSON
+            </a>
+            <a
+              className="button-secondary"
+              href={api.getEventExportUrl("csv", params)}
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+            >
+              ⬇ Export CSV
+            </a>
+          </div>
         </div>
 
         {loading ? (

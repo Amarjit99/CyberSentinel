@@ -138,3 +138,20 @@ test("Primary navigation and ATT&CK workspace expose keyboard/a11y contracts", (
   assert.match(stylesSource, /\.nav-item:focus-visible/);
   assert.match(stylesSource, /outline: 2px solid var\(--accent-teal\)/);
 });
+
+test("Real-time operations client exports and streaming contracts", () => {
+  const apiSource = readFileSync(resolve("src/api.ts"), "utf8");
+  const eventsPageSource = readFileSync(resolve("src/pages/EventsPage.tsx"), "utf8");
+  const adminPageSource = readFileSync(resolve("src/pages/AdminPage.tsx"), "utf8");
+
+  assert.match(apiSource, /getEventExportUrl\(format: "jsonl" \| "csv"/);
+  assert.match(apiSource, /testWebhookNotification\(payload:/);
+  assert.match(apiSource, /ingestEventStream\(events:/);
+
+  assert.match(eventsPageSource, /api\.getEventExportUrl\("jsonl", params\)/);
+  assert.match(eventsPageSource, /api\.getEventExportUrl\("csv", params\)/);
+
+  assert.match(adminPageSource, /api\.testWebhookNotification\(/);
+  assert.match(adminPageSource, /api\.ingestEventStream\(/);
+});
+

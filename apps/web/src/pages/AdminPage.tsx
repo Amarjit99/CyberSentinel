@@ -12,7 +12,69 @@ export function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Webhook Test State
+  const [testChannel, setTestChannel] = useState<"webhook" | "slack" | "pagerduty">("webhook");
+  const [testTitle, setTestTitle] = useState("Diagnostic Alert Test");
+  const [testMessage, setTestMessage] = useState("Verifying outbound dispatch pipeline");
+  const [testSeverity, setTestSeverity] = useState("HIGH");
+  const [testWebhookResult, setTestWebhookResult] = useState<Record<string, unknown> | null>(null);
+  const [testWebhookLoading, setTestWebhookLoading] = useState(false);
+  const [testWebhookError, setTestWebhookError] = useState<string | null>(null);
+
+  // Stream Ingest Test State
+  const [streamResult, setStreamResult] = useState<Record<string, unknown> | null>(null);
+  const [streamLoading, setStreamLoading] = useState(false);
+  const [streamError, setStreamError] = useState<string | null>(null);
+
   const currentRole = getActiveRole();
+
+  const handleTestWebhook = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTestWebhookLoading(true);
+    setTestWebhookError(null);
+    try {
+      const res = await api.testWebhookNotification({
+        channel: testChannel,
+        title: testTitle,
+        message: testMessage,
+        severity: testSeverity,
+      });
+      setTestWebhookResult(res);
+    } catch (err: unknown) {
+      setTestWebhookError(err instanceof Error ? err.message : "Notification test failed");
+    } finally {
+      setTestWebhookLoading(false);
+    }
+  };
+
+  const handleTestStream = async () => {
+    setStreamLoading(true);
+    setStreamError(null);
+    try {
+      const sampleEvent = {
+        event_id: `stream-ui-test-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        event_type: "process_creation",
+        source_type: "endpoint",
+        source_name: "edr-agent",
+        hostname: "WORKSTATION-01",
+        username: "analyst",
+        process_name: "powershell.exe",
+        command_line: "powershell.exe -enc JABzACAAPQAgAE4AZQB3AC0ATwBiAGoAZQBjAHQA...",
+        severity: "HIGH",
+        raw: {
+          ProcessId: 4412,
+          ParentProcessName: "cmd.exe",
+        },
+      };
+      const res = await api.ingestEventStream([sampleEvent], "web-stream-console");
+      setStreamResult(res);
+    } catch (err: unknown) {
+      setStreamError(err instanceof Error ? err.message : "Streaming injection failed");
+    } finally {
+      setStreamLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -231,6 +293,103 @@ export function AdminPage() {
           </div>
         )}
       </section>
+
+      {/* Real-Time Streaming Ingestion & Outbound Webhook Test */}
+      <div className="panel-grid" style={{ marginTop: "16px" }}>
+        {/* Outbound Notifications */}
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Outbound Notification Dispatcher Test</h2>
+              <span className="muted">Verify Slack, PagerDuty, or signed Webhook connectivity</span>
+            </div>
+          </div>
+
+          <form onSubmit={handleTestWebhook} style={{ display: "grid", gap: "10px" }}>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <select
+                className="filter-select"
+                value={testChannel}
+                onChange={(e) => setTestChannel(e.target.value as "webhook" | "slack" | "pagerduty")}
+                style={{ flex: 1 }}
+              >
+                <option value="webhook">Signed Generic Webhook (HMAC-SHA256)</option>
+                <option value="slack">Slack Webhook</option>
+                <option value="pagerduty">PagerDuty Events API v2</option>
+              </select>
+              <select
+                className="filter-select"
+                value={testSeverity}
+                onChange={(e) => setTestSeverity(e.target.value)}
+                style={{ width: "130px" }}
+              >
+                <option value="CRITICAL">CRITICAL</option>
+                <option value="HIGH">HIGH</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="LOW">LOW</option>
+              </select>
+            </div>
+            <input
+              type="text"
+              className="filter-input"
+              value={testTitle}
+              onChange={(e) => setTestTitle(e.target.value)}
+              placeholder="Notification Title"
+              required
+            />
+            <input
+              type="text"
+              className="filter-input"
+              value={testMessage}
+              onChange={(e) => setTestMessage(e.target.value)}
+              placeholder="Notification Message"
+              required
+            />
+            <button className="button-primary" type="submit" disabled={testWebhookLoading}>
+              {testWebhookLoading ? "Dispatching…" : "Send Test Notification"}
+            </button>
+          </form>
+
+          {testWebhookError && <div className="text-critical" style={{ marginTop: "10px" }}>{testWebhookError}</div>}
+          {testWebhookResult && (
+            <div style={{ marginTop: "12px" }}>
+              <Badge label="DISPATCHED" variant="healthy" size="small" />
+              <pre className="json-snippet">{JSON.stringify(testWebhookResult, null, 2)}</pre>
+            </div>
+          )}
+        </section>
+
+        {/* Streaming Ingestion Worker */}
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Real-Time Streaming Ingestion Worker</h2>
+              <span className="muted">Direct inline Sigma detection & correlation evaluation</span>
+            </div>
+          </div>
+
+          <p className="muted" style={{ fontSize: "13px", margin: "0 0 12px 0" }}>
+            Injects a live telemetry payload through <code>/api/v1/ingest/stream</code>, evaluating pySigma rules and sliding-window attack scenario correlations synchronously in &lt;5ms.
+          </p>
+
+          <button
+            className="button-primary"
+            onClick={handleTestStream}
+            disabled={streamLoading}
+            type="button"
+          >
+            {streamLoading ? "Processing Stream…" : "⚡ Inject Live Streaming Event Batch"}
+          </button>
+
+          {streamError && <div className="text-critical" style={{ marginTop: "10px" }}>{streamError}</div>}
+          {streamResult && (
+            <div style={{ marginTop: "12px" }}>
+              <Badge label="BATCH PROCESSED" variant="healthy" size="small" />
+              <pre className="json-snippet">{JSON.stringify(streamResult, null, 2)}</pre>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
